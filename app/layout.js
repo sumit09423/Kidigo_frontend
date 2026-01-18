@@ -1,4 +1,5 @@
 import './globals.css'
+import Navbar from '@/components/Navbar'
 
 export const metadata = {
   title: 'Kidigo - Event Ticket Booking',
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" style={{ colorScheme: 'light' }}>
-      <body style={{ colorScheme: 'light' }}>{children}</body>
+      <body style={{ colorScheme: 'light' }}>
+        <Navbar />
+        {children}
+      </body>
     </html>
   )
 }
