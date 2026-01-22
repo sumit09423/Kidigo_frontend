@@ -45,3 +45,13 @@ input[type="text"]::placeholder,
 textarea::placeholder {
   color: rgb(156, 163, 175) !important; /* gray-400 */
 }
+
+/* Hide scrollbar for horizontal scroll buttons */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
