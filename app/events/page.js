@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import HorizontalScrollButtons from '@/components/HorizontalScrollButtons'
 import FilterButtons from '@/components/FilterButtons'
 import MainEventCards from '@/components/MainEventCards'
 import { Activity, Music, Wrench, Palette } from 'lucide-react'
+import { getAllEvents, getEventsByCategory } from '@/lib/events'
 
 export default function EventsPage() {
   const [selectedCategory, setSelectedCategory] = useState('sports')
@@ -37,91 +38,35 @@ export default function EventsPage() {
     },
   ]
 
-  // Sample events data
-  const events = [
-    {
-      id: 1,
-      title: 'International Band Music Festival',
-      date: '2024-06-10',
-      location: '36 Guild Street London, UK',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-    {
-      id: 2,
-      title: 'Jo Malone London\'s Modern Art Exhibition',
-      date: '2024-06-10',
-      location: 'Radius Gallery • Santa Cruz, CA',
-      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-    {
-      id: 3,
-      title: 'International Band Music Festival',
-      date: '2024-06-10',
-      location: '36 Guild Street London, UK',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-    {
-      id: 4,
-      title: 'Jo Malone London\'s Modern Art Exhibition',
-      date: '2024-06-10',
-      location: 'Radius Gallery • Santa Cruz, CA',
-      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-    {
-      id: 5,
-      title: 'International Band Music Festival',
-      date: '2024-06-10',
-      location: '36 Guild Street London, UK',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-    {
-      id: 6,
-      title: 'Jo Malone London\'s Modern Art Exhibition',
-      date: '2024-06-10',
-      location: 'Radius Gallery • Santa Cruz, CA',
-      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-    {
-      id: 7,
-      title: 'International Band Music Festival',
-      date: '2024-06-10',
-      location: '36 Guild Street London, UK',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-    {
-      id: 8,
-      title: 'Jo Malone London\'s Modern Art Exhibition',
-      date: '2024-06-10',
-      location: 'Radius Gallery • Santa Cruz, CA',
-      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-    {
-      id: 9,
-      title: 'International Band Music Festival',
-      date: '2024-06-10',
-      location: '36 Guild Street London, UK',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop&auto=format',
-      category: 'sports'
-    },
-  ]
+  // Get events based on selected category
+  const events = useMemo(() => {
+    const allEvents = getAllEvents()
+    
+    // Map category IDs to actual event categories
+    const categoryMap = {
+      'sports': ['sports', 'Sports'],
+      'music': ['music', 'Music', 'concerts', 'Concert'],
+      'arts': ['arts', 'Arts', 'art', 'Art'],
+      'art': ['arts', 'Arts', 'art', 'Art']
+    }
+    
+    const categories = categoryMap[selectedCategory] || []
+    
+    return allEvents.filter(event => 
+      categories.some(cat => 
+        event.category?.toLowerCase() === cat.toLowerCase() ||
+        event.subCategory?.toLowerCase() === cat.toLowerCase()
+      )
+    )
+  }, [selectedCategory])
 
   const handleCategoryClick = (button) => {
     setSelectedCategory(button.id)
-    console.log('Selected category:', button.id)
   }
 
   const handleFilterClick = (filter) => {
     console.log('Selected filter:', filter.id)
   }
-
 
   // Get category name for title
   const categoryName = categoryButtons.find(cat => cat.id === selectedCategory)?.label || 'Sports'
@@ -135,6 +80,7 @@ export default function EventsPage() {
             buttons={categoryButtons}
             onButtonClick={handleCategoryClick}
             defaultSelected="sports"
+            selected={selectedCategory}
           />
         </div>
       </section>

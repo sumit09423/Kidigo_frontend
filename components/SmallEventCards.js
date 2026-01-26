@@ -2,135 +2,39 @@
 
 import Image from 'next/image'
 import { MapPin, Calendar } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { getUpcomingEvents, getAllEvents } from '@/lib/events'
 
 export default function SmallEventCards({ 
   upcomingEvents = [],
   savedEvents = [],
   myEvents = []
 }) {
-  // Default small events for sidebar
-  const defaultUpcomingEvents = [
-    {
-      id: 1,
-      title: 'Jazz Night',
-      date: '2024-05-01',
-      time: '2:00 PM',
-      location: 'Blue Note',
-      description: 'A virtual evening of smooth jazz',
-      image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150&h=100&fit=crop',
-      price: '$25'
-    },
-    {
-      id: 2,
-      title: 'Yoga Workshop',
-      date: '2024-07-20',
-      time: '8:00 AM',
-      location: 'Wellness Center',
-      description: 'Start your day with mindful movement',
-      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=150&h=100&fit=crop',
-      price: '$15'
-    },
-    {
-      id: 3,
-      title: 'Rock Concert',
-      date: '2024-07-22',
-      time: '7:00 PM',
-      location: 'Arena',
-      description: 'Experience the best rock bands live',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=100&fit=crop',
-      price: '$60'
-    },
-    {
-      id: 4,
-      title: 'Wine Tasting',
-      date: '2024-07-25',
-      time: '6:00 PM',
-      location: 'Vineyard',
-      description: 'Discover fine wines from around the world',
-      image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=150&h=100&fit=crop',
-      price: '$35'
-    },
-    {
-      id: 5,
-      title: 'Book Reading',
-      date: '2024-07-28',
-      time: '3:00 PM',
-      location: 'Library',
-      description: 'Join us for an inspiring author reading',
-      image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=150&h=100&fit=crop',
-      price: 'Free'
-    },
-    {
-      id: 6,
-      title: 'Basketball Game',
-      date: '2024-08-01',
-      time: '5:00 PM',
-      location: 'Sports Arena',
-      description: 'Watch the championship game live',
-      image: 'https://images.unsplash.com/photo-1574623452334-1e0ac2b3ccb4?w=150&h=100&fit=crop',
-      price: '$40'
-    }
-  ]
-
-  const defaultSavedEvents = [
-    {
-      id: 7,
-      title: 'Photography Class',
-      date: '2024-08-05',
-      time: '10:00 AM',
-      location: 'Art Studio',
-      description: 'Learn professional photography techniques',
-      image: 'https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=150&h=100&fit=crop',
-      price: '$50'
-    },
-    {
-      id: 8,
-      title: 'Stand-up Comedy',
-      date: '2024-08-10',
-      time: '8:00 PM',
-      location: 'Comedy Club',
-      description: 'Laugh out loud with top comedians',
-      image: 'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?w=150&h=100&fit=crop',
-      price: '$20'
-    },
-    {
-      id: 9,
-      title: 'Art Exhibition',
-      date: '2024-08-15',
-      time: '11:00 AM',
-      location: 'Gallery',
-      description: 'Explore contemporary art collections',
-      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=150&h=100&fit=crop',
-      price: '$30'
-    }
-  ]
-
-  const defaultMyEvents = [
-    {
-      id: 10,
-      title: 'Marathon Run',
-      date: '2024-07-20',
-      time: '6:00 AM',
-      location: 'Riverside Park',
-      description: 'Join thousands of runners for charity',
-      image: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=150&h=100&fit=crop',
-      price: '$35'
-    },
-    {
-      id: 11,
-      title: 'Music Festival',
-      date: '2024-08-12',
-      time: '12:00 PM',
-      location: 'Concert Hall',
-      description: 'Three days of amazing music and fun',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=150&h=100&fit=crop',
-      price: '$75'
-    }
-  ]
-
-  const upcoming = upcomingEvents.length > 0 ? upcomingEvents : defaultUpcomingEvents
-  const saved = savedEvents.length > 0 ? savedEvents : defaultSavedEvents
-  const my = myEvents.length > 0 ? myEvents : defaultMyEvents
+  const router = useRouter()
+  
+  // Get events from JSON if not provided
+  const allEvents = getAllEvents()
+  
+  // Get upcoming events, or fallback to recent events if none are upcoming
+  const upcomingFromJson = getUpcomingEvents()
+  const defaultUpcoming = upcomingFromJson.length > 0 
+    ? upcomingFromJson.slice(0, 6)
+    : allEvents.slice(0, 6) // Fallback to first 6 events if no upcoming events
+  
+  // For saved events, use a different set of events (e.g., featured or different category)
+  const defaultSaved = allEvents
+    .filter(event => event.featured)
+    .slice(0, 3)
+  
+  // For my events, use another set (e.g., events user might be interested in)
+  const defaultMy = allEvents
+    .filter(event => event.status === 'upcoming')
+    .slice(3, 5)
+  
+  // Use provided events or default from JSON
+  const upcoming = upcomingEvents.length > 0 ? upcomingEvents : defaultUpcoming
+  const saved = savedEvents.length > 0 ? savedEvents : defaultSaved
+  const my = myEvents.length > 0 ? myEvents : defaultMy
 
   // Helper function to format date: "1st May - Sat - 2:00 PM"
   const formatEventDate = (dateString, time) => {
@@ -146,11 +50,29 @@ export default function SmallEventCards({
     return `${day}${daySuffix} ${month} - ${dayOfWeek} - ${formattedTime}`
   }
 
+  const formatLocation = (location) => {
+    if (typeof location === 'string') {
+      return location
+    }
+    if (location && typeof location === 'object') {
+      if (location.address) {
+        return location.address
+      }
+      if (location.venue && location.city) {
+        return `${location.venue} • ${location.city}`
+      }
+      return location.venue || ''
+    }
+    return ''
+  }
+
   const EventCard = ({ event }) => {
     const dateTime = formatEventDate(event.date, event.time)
+    const locationText = formatLocation(event.location)
     
     return (
       <div
+        onClick={() => router.push(`/events/${event.id}`)}
         className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden cursor-pointer group"
       >
       <div className="flex gap-2 md:gap-3 p-2 md:p-3">
@@ -166,6 +88,9 @@ export default function SmallEventCards({
 
           {/* Event Details */}
           <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-1">
+              {event.title}
+            </h4>
             <div className="space-y-1 text-xs text-gray-600">
               <div className="flex items-start gap-1">
                 <Calendar className="w-3 h-3 text-gray-400 mt-0.5 flex-shrink-0" />

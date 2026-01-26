@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-// Color palette for buttons - all work well with white text
+// Color palette for buttons - matches events page category design (all work well with white text)
 const buttonColors = [
   '#F0635A', // Red
   '#F59762', // Orange
@@ -16,19 +16,31 @@ const buttonColors = [
   '#1ABC9C', // Turquoise
 ]
 
-export default function HorizontalScrollButtons({ 
-  buttons = [], 
+export default function HorizontalScrollButtons({
+  buttons = [],
   onButtonClick,
   defaultSelected = null,
-  className = ''
+  selected: controlledSelected = null,
+  className = '',
 }) {
-  const [selectedButton, setSelectedButton] = useState(defaultSelected)
+  const [internalSelected, setInternalSelected] = useState(defaultSelected)
+
+  // Controlled mode: use prop when provided; otherwise use internal state
+  const isControlled = controlledSelected !== null && controlledSelected !== undefined
+  const selectedButton = isControlled ? controlledSelected : internalSelected
+
+  useEffect(() => {
+    if (!isControlled && defaultSelected != null) {
+      setInternalSelected(defaultSelected)
+    }
+  }, [defaultSelected, isControlled])
 
   const handleClick = (button) => {
-    setSelectedButton(button.id || button.label)
-    if (onButtonClick) {
-      onButtonClick(button)
+    const id = button.id ?? button.label
+    if (!isControlled) {
+      setInternalSelected(id)
     }
+    onButtonClick?.(button)
   }
 
   // Default buttons if none provided
@@ -44,7 +56,7 @@ export default function HorizontalScrollButtons({
 
   return (
     <div className={`w-full relative ${className}`}>
-      <div 
+      <div
         className="overflow-x-auto scrollbar-hide scroll-smooth"
         onWheel={(e) => {
           e.currentTarget.scrollLeft += e.deltaY
@@ -52,12 +64,14 @@ export default function HorizontalScrollButtons({
       >
         <div className="flex gap-2 pb-1">
           {buttonsToRender.map((button, index) => {
-            const buttonColor = button.color || buttonColors[index % buttonColors.length]
+            const buttonColor = button.color ?? buttonColors[index % buttonColors.length]
             const Icon = button.icon
-            
+            const id = button.id ?? button.label
+            const isSelected = selectedButton === id
+
             return (
               <button
-                key={button.id || button.label}
+                key={id}
                 onClick={() => handleClick(button)}
                 style={{
                   backgroundColor: buttonColor,
@@ -69,9 +83,10 @@ export default function HorizontalScrollButtons({
                   whitespace-nowrap text-white
                   hover:opacity-90
                   flex items-center gap-2
+                  ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-50' : ''}
                 `}
               >
-                {Icon && <Icon className="w-4 h-4" />}
+                {Icon && <Icon className="w-4 h-4 shrink-0" />}
                 {button.label}
               </button>
             )

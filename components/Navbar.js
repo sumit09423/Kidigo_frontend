@@ -3,18 +3,25 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, Bell, ChevronDown, Menu, X, User } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Search, Bell, ChevronDown, Menu, X, User, LogIn } from 'lucide-react'
+import AuthModal from './AuthModal'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Navbar() {
+  const { user: loggedInUser, logout } = useAuth()
+  const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [imageError, setImageError] = useState(false)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [authModalView, setAuthModalView] = useState('login')
 
-  // Dummy user data - replace with actual user data from auth
-  const loggedInUser = {
-    name: 'John Doe',
-    image: 'https://ui-avatars.com/api/?name=John+Doe&background=random&color=fff&size=128'
+  const handleLogout = () => {
+    logout()
+    setIsUserMenuOpen(false)
+    router.push('/')
   }
 
   const toggleMenu = () => {
@@ -61,87 +68,102 @@ export default function Navbar() {
             </div>
 
             {/* Notification Bell */}
-            <button
-              className="relative w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5 text-gray-600" />
-              {/* Notification Badge */}
-              <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
-            </button>
-
-            {/* User Profile with Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            {loggedInUser && (
+              <Link
+                href="/notifications"
+                className="relative w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                aria-label="Notifications"
               >
-                {/* User Avatar */}
-                <div className="relative w-10 h-10 flex-shrink-0">
-                  {!imageError ? (
-                    <Image
-                      src={loggedInUser.image}
-                      alt={loggedInUser.name}
-                      width={40}
-                      height={40}
-                      className="rounded-full object-cover w-10 h-10"
-                      onError={() => setImageError(true)}
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      <User className="w-6 h-6 text-gray-500" />
-                    </div>
-                  )}
-                </div>
-                {/* User Name */}
-                <span className="text-sm font-medium text-gray-700 hidden lg:block">
-                  {loggedInUser.name}
-                </span>
-                {/* Down Arrow */}
-                <ChevronDown className={`h-5 w-5 text-gray-500 transition-transform ${isUserMenuOpen ? 'transform rotate-180' : ''}`} />
-              </button>
+                <Bell className="h-5 w-5 text-gray-600" />
+                {/* Notification Badge */}
+                <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
+              </Link>
+            )}
 
-              {/* User Dropdown Menu */}
-              {isUserMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  ></div>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-20 border border-gray-200">
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
-                      My Profile
-                    </Link>
-                    <Link
-                      href="/bookings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
-                      My Bookings
-                    </Link>
-                    <Link
-                      href="/settings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
-                      Settings
-                    </Link>
-                    <div className="border-t border-gray-200 my-1"></div>
-                    <Link
-                      href="/logout"
-                      className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
-                      Sign Out
-                    </Link>
+            {/* User Profile with Dropdown or Login Button */}
+            {loggedInUser ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  {/* User Avatar */}
+                  <div className="relative w-10 h-10 flex-shrink-0">
+                    {!imageError ? (
+                      <Image
+                        src={loggedInUser.image}
+                        alt={loggedInUser.name}
+                        width={40}
+                        height={40}
+                        className="rounded-full object-cover w-10 h-10"
+                        onError={() => setImageError(true)}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User className="w-6 h-6 text-gray-500" />
+                      </div>
+                    )}
                   </div>
-                </>
-              )}
-            </div>
+                  {/* User Name/ID */}
+                  <span className="text-sm font-medium text-gray-700 hidden lg:block">
+                    {loggedInUser.userId || loggedInUser.name}
+                  </span>
+                  {/* Down Arrow */}
+                  <ChevronDown className={`h-5 w-5 text-gray-500 transition-transform ${isUserMenuOpen ? 'transform rotate-180' : ''}`} />
+                </button>
+
+                {/* User Dropdown Menu */}
+                {isUserMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    ></div>
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-20 border border-gray-200">
+                      <Link
+                        href="/profile"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        My Profile
+                      </Link>
+                      <Link
+                        href="/my-events"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        My Events
+                      </Link>
+                      <Link
+                        href="/notifications"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Notifications
+                      </Link>
+                      <div className="border-t border-gray-200 my-1"></div>
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setAuthModalView('login')
+                  setIsAuthModalOpen(true)
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+              >
+                <LogIn className="w-5 h-5" />
+                <span>Login</span>
+              </button>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -191,29 +213,50 @@ export default function Navbar() {
               </Link>
             ))}
             <div className="pt-4 pb-3 border-t border-gray-200">
-              <div className="flex items-center space-x-3 px-3 py-2">
-                <div className="relative w-8 h-8 flex-shrink-0">
-                  {!imageError ? (
-                    <Image
-                      src={loggedInUser.image}
-                      alt={loggedInUser.name}
-                      width={32}
-                      height={32}
-                      className="rounded-full object-cover w-8 h-8"
-                      onError={() => setImageError(true)}
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                      <User className="w-5 h-5 text-gray-500" />
-                    </div>
-                  )}
+              {loggedInUser ? (
+                <div className="flex items-center space-x-3 px-3 py-2">
+                  <div className="relative w-8 h-8 flex-shrink-0">
+                    {!imageError ? (
+                      <Image
+                        src={loggedInUser.image}
+                        alt={loggedInUser.name}
+                        width={32}
+                        height={32}
+                        className="rounded-full object-cover w-8 h-8"
+                        onError={() => setImageError(true)}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-500" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{loggedInUser.name}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-700">{loggedInUser.name}</span>
-              </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setAuthModalView('login')
+                    setIsAuthModalOpen(true)
+                    setIsMenuOpen(false)
+                  }}
+                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                >
+                  <LogIn className="w-5 h-5" />
+                  <span>Login</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Auth Modal - Unified Login/Signup/Verification/Reset Password */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)}
+        initialView={authModalView}
+      />
     </nav>
   )
 }

@@ -4,24 +4,42 @@ import HorizontalScrollButtons from '@/components/HorizontalScrollButtons'
 import MainEventCards from '@/components/MainEventCards'
 import SmallEventCards from '@/components/SmallEventCards'
 import ImageCarousel from '@/components/ImageCarousel'
+import { getFeaturedEvents, getAllEvents } from '@/lib/events'
+import { LayoutGrid, Music, Activity, Film, Smile, UtensilsCrossed, Palette, Wrench } from 'lucide-react'
 
 export default function Home() {
+  const featuredEvents = getFeaturedEvents()
+  const allEvents = getAllEvents()
+  
+  // Get sports events for the Sports & Fitness section
+  const sportsEvents = allEvents
+    .filter(event => 
+      event.category?.toLowerCase() === 'sports' || 
+      event.subCategory?.toLowerCase() === 'sports' ||
+      event.subCategory?.toLowerCase() === 'running' ||
+      event.subCategory?.toLowerCase() === 'basketball'
+    )
+    .slice(0, 3)
+
+  // Category buttons - same design as events page (colors + icons)
+  const categoryButtons = [
+    { id: 'all', label: 'All Events', color: '#6B7280', icon: LayoutGrid },
+    { id: 'concerts', label: 'Concerts', color: '#F59762', icon: Music },
+    { id: 'sports', label: 'Sports', color: '#F0635A', icon: Activity },
+    { id: 'theater', label: 'Theater', color: '#9B59B6', icon: Film },
+    { id: 'comedy', label: 'Comedy', color: '#E67E22', icon: Smile },
+    { id: 'food', label: 'Food & Drink', color: '#E74C3C', icon: UtensilsCrossed },
+    { id: 'art', label: 'Art & Culture', color: '#4285F4', icon: Palette },
+    { id: 'workshops', label: 'Workshops', color: '#29D697', icon: Wrench },
+  ]
+
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* Category Filter Section */}
-      <section className="py-4">
+      {/* Category Filter Section - same design as events page */}
+      <section className="py-4 border-b border-gray-200 mb-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <HorizontalScrollButtons
-            buttons={[
-              { id: 'all', label: 'All Events' },
-              { id: 'concerts', label: 'Concerts' },
-              { id: 'sports', label: 'Sports' },
-              { id: 'theater', label: 'Theater' },
-              { id: 'comedy', label: 'Comedy' },
-              { id: 'food', label: 'Food & Drink' },
-              { id: 'art', label: 'Art & Culture' },
-              { id: 'workshops', label: 'Workshops' },
-            ]}
+            buttons={categoryButtons}
             onButtonClick={(button) => {
               console.log('Selected category:', button)
               // Add your filter logic here
@@ -39,6 +57,7 @@ export default function Home() {
             <div className="w-full lg:w-4/5 lg:border-r lg:border-gray-200 lg:pr-8">
               <MainEventCards 
                 title="Featured Events"
+                events={featuredEvents}
                 seeAllUrl="/events"
               />
               
@@ -77,38 +96,8 @@ export default function Home() {
               {/* Sports & Fitness Section */}
               <div className="mt-8 md:mt-12">
                 <MainEventCards 
-                  events={[
-                    {
-                      id: 4,
-                      title: 'Marathon Run 2024',
-                      date: '2024-07-20',
-                      time: '6:00 AM',
-                      location: 'Riverside Park',
-                      image: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&h=600&fit=crop&auto=format',
-                      price: '$35',
-                      category: 'sports'
-                    },
-                    {
-                      id: 5,
-                      title: 'Yoga in the Park',
-                      date: '2024-07-25',
-                      time: '8:00 AM',
-                      location: 'Central Park',
-                      image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&h=600&fit=crop&auto=format',
-                      price: '$20',
-                      category: 'sports'
-                    },
-                    {
-                      id: 6,
-                      title: 'Basketball Tournament',
-                      date: '2024-08-05',
-                      time: '2:00 PM',
-                      location: 'Sports Complex',
-                      image: 'https://images.unsplash.com/photo-1519861531473-92002622ca7b?w=800&h=600&fit=crop&auto=format',
-                      price: '$15',
-                      category: 'sports'
-                    },
-                  ]}
+                  title="Sports & Fitness"
+                  events={sportsEvents}
                   seeAllUrl="/events"
                 />
               </div>

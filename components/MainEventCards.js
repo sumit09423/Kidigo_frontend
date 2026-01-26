@@ -34,6 +34,22 @@ export default function MainEventCards({
     return { day, month }
   }
 
+  const formatLocation = (location) => {
+    if (typeof location === 'string') {
+      return location
+    }
+    if (location && typeof location === 'object') {
+      if (location.address) {
+        return location.address
+      }
+      if (location.venue && location.city) {
+        return `${location.venue} • ${location.city}, ${location.country || ''}`
+      }
+      return location.venue || ''
+    }
+    return ''
+  }
+
   // Default events if none provided
   const defaultEvents = [
     {
@@ -101,11 +117,12 @@ export default function MainEventCards({
       {eventsToShow.map((event) => (
         <div
           key={event.id}
+          onClick={() => router.push(`/events/${event.id}`)}
           className="bg-white rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden cursor-pointer group w-full"
         >
           {/* Event Image */}
-          <div className={`relative ${variant === 'category' ? 'h-48 sm:h-44 md:h-48' : 'h-48 sm:h-44 md:h-48 p-2 sm:p-2.5 md:p-3'}`}>
-            <div className={`relative w-full h-full overflow-hidden ${variant === 'category' ? '' : 'rounded-md sm:rounded-lg'} bg-gray-200`}>
+          <div className={`relative h-48 sm:h-44 md:h-48 p-2 sm:p-2.5 md:p-3`}>
+            <div className={`relative w-full h-full overflow-hidden rounded-md sm:rounded-lg bg-gray-200`}>
               <Image
                 src={event.image}
                 alt={event.title}
@@ -154,12 +171,12 @@ export default function MainEventCards({
               <div className="flex items-start gap-1.5">
                 <MapPin className="w-3 h-3 text-gray-500 mt-0.5 flex-shrink-0" />
                 <p className="text-xs sm:text-[13px] font-normal text-gray-600 line-clamp-1">
-                  {event.location}
+                  {formatLocation(event.location)}
                 </p>
               </div>
             ) : (
               <p className="text-xs sm:text-[13px] font-normal text-gray-600 line-clamp-1">
-                {event.location}
+                {formatLocation(event.location)}
               </p>
             )}
           </div>
