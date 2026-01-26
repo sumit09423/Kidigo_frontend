@@ -42,7 +42,7 @@ export default function Footer() {
           {/* Right Side: QR Code */}
           <div className="flex-shrink-0">
             <Image
-              src="/assets/qr-code.png"
+              src="/assets/logo/QR.png"
               alt="QR Code - Scan to download"
               width={100}
               height={100}

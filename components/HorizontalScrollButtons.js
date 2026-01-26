@@ -53,6 +53,7 @@ export default function HorizontalScrollButtons({
         <div className="flex gap-2 pb-1">
           {buttonsToRender.map((button, index) => {
             const buttonColor = button.color || buttonColors[index % buttonColors.length]
+            const Icon = button.icon
             
             return (
               <button
@@ -67,8 +68,10 @@ export default function HorizontalScrollButtons({
                   font-medium text-sm transition-all duration-200
                   whitespace-nowrap text-white
                   hover:opacity-90
+                  flex items-center gap-2
                 `}
               >
+                {Icon && <Icon className="w-4 h-4" />}
                 {button.label}
               </button>
             )

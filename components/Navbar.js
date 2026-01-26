@@ -50,7 +50,7 @@ export default function Navbar() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search events..."
+                placeholder="Search for Events, Workshops, Classes"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="block w-64 pl-3 pr-10 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
@@ -170,7 +170,7 @@ export default function Navbar() {
             <div className="relative mb-4">
               <input
                 type="text"
-                placeholder="Search events..."
+                placeholder="Search for Events, Workshops, Classes"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"

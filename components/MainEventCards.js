@@ -1,15 +1,18 @@
 'use client'
 
 import Image from 'next/image'
-import { Heart, ChevronRight } from 'lucide-react'
+import { ChevronRight, Bookmark, MapPin } from 'lucide-react'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function MainEventCards({ 
   events = [], 
   title = 'Outdoors & Adventure',
   onSeeAll,
-  seeAllUrl 
+  seeAllUrl,
+  variant = 'default' // 'default' or 'category'
 }) {
+  const router = useRouter()
   const [wishlist, setWishlist] = useState(new Set())
 
   const toggleWishlist = (eventId) => {
@@ -71,7 +74,9 @@ export default function MainEventCards({
     if (onSeeAll) {
       onSeeAll()
     } else if (seeAllUrl) {
-      window.location.href = seeAllUrl
+      router.push(seeAllUrl)
+    } else {
+      router.push('/events')
     }
   }
 
@@ -99,8 +104,8 @@ export default function MainEventCards({
           className="bg-white rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden cursor-pointer group w-full"
         >
           {/* Event Image */}
-          <div className="relative h-48 sm:h-44 md:h-48 p-2 sm:p-2.5 md:p-3">
-            <div className="relative w-full h-full overflow-hidden rounded-md sm:rounded-lg bg-gray-200">
+          <div className={`relative ${variant === 'category' ? 'h-48 sm:h-44 md:h-48' : 'h-48 sm:h-44 md:h-48 p-2 sm:p-2.5 md:p-3'}`}>
+            <div className={`relative w-full h-full overflow-hidden ${variant === 'category' ? '' : 'rounded-md sm:rounded-lg'} bg-gray-200`}>
               <Image
                 src={event.image}
                 alt={event.title}
@@ -112,28 +117,28 @@ export default function MainEventCards({
               
               {/* Date - Left Side */}
               <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-white/90 backdrop-blur-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-center z-10">
-                <div className="text-[10px] sm:text-xs font-bold text-gray-900 leading-none">
+                <div className="text-[10px] sm:text-xs font-bold text-[#F0635A] leading-none">
                   {formatDate(event.date).day}
                 </div>
-                <div className="text-[9px] sm:text-xs font-bold text-gray-700 uppercase mt-0.5 sm:mt-1">
+                <div className="text-[9px] sm:text-xs font-bold text-[#F0635A] uppercase mt-0.5 sm:mt-1">
                   {formatDate(event.date).month}
                 </div>
               </div>
 
-              {/* Wishlist Button - Right Side */}
+              {/* Bookmark Button - Right Side */}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   toggleWishlist(event.id)
                 }}
-                className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm p-1.5 sm:p-2 rounded-full hover:bg-white transition-colors duration-200 z-10"
-                aria-label="Add to wishlist"
+                className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white p-1.5 sm:p-2 rounded z-10 hover:bg-gray-50 transition-colors duration-200"
+                aria-label="Bookmark event"
               >
-                <Heart
+                <Bookmark 
                   className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${
                     wishlist.has(event.id)
-                      ? 'fill-red-500 text-red-500'
-                      : 'text-gray-700'
+                      ? 'fill-[#F0635A] text-[#F0635A]'
+                      : 'text-[#F0635A]'
                   }`}
                 />
               </button>
@@ -141,13 +146,22 @@ export default function MainEventCards({
           </div>
 
           {/* Event Details */}
-          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-            <h3 className="text-sm sm:text-[14px] font-medium text-gray-900 mb-1 line-clamp-2">
+          <div className={`${variant === 'category' ? 'px-3 sm:px-4 pb-3 sm:pb-4' : 'px-3 sm:px-4 pb-3 sm:pb-4'}`}>
+            <h3 className={`${variant === 'category' ? 'text-sm sm:text-[14px] font-medium mb-1 line-clamp-2' : 'text-sm sm:text-[14px] font-medium mb-1 line-clamp-2'} text-gray-900`}>
               {event.title}
             </h3>
-            <p className="text-xs sm:text-[13px] font-normal text-gray-600 line-clamp-1">
-              {event.location}
-            </p>
+            {variant === 'category' ? (
+              <div className="flex items-start gap-1.5">
+                <MapPin className="w-3 h-3 text-gray-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs sm:text-[13px] font-normal text-gray-600 line-clamp-1">
+                  {event.location}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs sm:text-[13px] font-normal text-gray-600 line-clamp-1">
+                {event.location}
+              </p>
+            )}
           </div>
         </div>
       ))}

@@ -39,10 +39,7 @@ export default function Home() {
             <div className="w-full lg:w-4/5 lg:border-r lg:border-gray-200 lg:pr-8">
               <MainEventCards 
                 title="Featured Events"
-                onSeeAll={() => {
-                  console.log('See all events clicked')
-                  // Add navigation logic here
-                }}
+                seeAllUrl="/events"
               />
               
               {/* Invite Friend Image Carousel */}
@@ -112,10 +109,7 @@ export default function Home() {
                       category: 'sports'
                     },
                   ]}
-                  onSeeAll={() => {
-                    console.log('See all sports events clicked')
-                    // Add navigation logic here
-                  }}
+                  seeAllUrl="/events"
                 />
               </div>
             </div>
