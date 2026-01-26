@@ -67,15 +67,15 @@ export default function ImageCarousel({
               {/* Overlay Content */}
               {typeof image !== 'string' && image.title && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
-                  <div className="w-full p-6 text-white">
+                  <div className="w-full p-4 md:p-6 text-white">
                     {image.title && (
-                      <h3 className="text-2xl font-bold mb-2">{image.title}</h3>
+                      <h3 className="text-lg md:text-xl lg:text-2xl font-bold mb-1 md:mb-2">{image.title}</h3>
                     )}
                     {image.description && (
-                      <p className="text-lg">{image.description}</p>
+                      <p className="text-sm md:text-base lg:text-lg">{image.description}</p>
                     )}
                     {image.buttonText && (
-                      <button className="mt-4 bg-white text-gray-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                      <button className="mt-3 md:mt-4 bg-white text-gray-900 px-4 md:px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors text-sm md:text-base">
                         {image.buttonText}
                       </button>
                     )}
@@ -91,17 +91,17 @@ export default function ImageCarousel({
           <>
             <button
               onClick={prevSlide}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all duration-200"
+              className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-1.5 md:p-2 rounded-full shadow-lg transition-all duration-200"
               aria-label="Previous slide"
             >
-              <ChevronLeft className="w-6 h-6 text-gray-900" />
+              <ChevronLeft className="w-4 h-4 md:w-6 md:h-6 text-gray-900" />
             </button>
             <button
               onClick={nextSlide}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all duration-200"
+              className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-1.5 md:p-2 rounded-full shadow-lg transition-all duration-200"
               aria-label="Next slide"
             >
-              <ChevronRight className="w-6 h-6 text-gray-900" />
+              <ChevronRight className="w-4 h-4 md:w-6 md:h-6 text-gray-900" />
             </button>
           </>
         )}

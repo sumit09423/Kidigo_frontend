@@ -39,7 +39,7 @@ export default function Navbar() {
               alt="Kidigo Logo"
               width={120}
               height={90}
-              className="w-[120px] h-[90px] object-contain"
+              className="w-16 h-12 sm:w-20 sm:h-15 md:w-24 md:h-18 lg:w-[120px] lg:h-[90px] object-contain"
               priority
             />
           </Link>

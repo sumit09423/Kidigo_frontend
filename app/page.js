@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Category Filter Section */}
-      <section className="py-8">
+      <section className="py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <HorizontalScrollButtons
             buttons={[
@@ -32,11 +32,11 @@ export default function Home() {
       </section>
 
       {/* Events Layout Section */}
-      <section >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-8">
-            {/* Main Events Area - 80% */}
-            <div className="w-4/5 border-r border-gray-200 pr-8">
+      <section className="pb-8 md:pb-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
+            {/* Main Events Area */}
+            <div className="w-full lg:w-4/5 lg:border-r lg:border-gray-200 lg:pr-8">
               <MainEventCards 
                 title="Featured Events"
                 onSeeAll={() => {
@@ -46,7 +46,7 @@ export default function Home() {
               />
               
               {/* Invite Friend Image Carousel */}
-              <div className="mt-12">
+              <div className="mt-8 md:mt-12">
                 <ImageCarousel
                   title="Invite Your Friends"
                   images={[
@@ -69,7 +69,7 @@ export default function Home() {
                       buttonText: 'Connect Now'
                     }
                   ]}
-                  height="h-96"
+                  height="h-64 md:h-80 lg:h-96"
                   autoPlay={true}
                   autoPlayInterval={4000}
                   showDots={true}
@@ -78,7 +78,7 @@ export default function Home() {
               </div>
               
               {/* Sports & Fitness Section */}
-              <div className="mt-12">
+              <div className="mt-8 md:mt-12">
                 <MainEventCards 
                   events={[
                     {
@@ -120,9 +120,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Sidebar Area - 20% */}
-            <div className="w-1/5">
-              <div className="sticky top-24">
+            {/* Sidebar Area - Hidden on mobile/tablet, visible on desktop */}
+            <div className="w-full lg:w-1/5">
+              <div className="lg:sticky lg:top-24">
                 <SmallEventCards />
               </div>
             </div>

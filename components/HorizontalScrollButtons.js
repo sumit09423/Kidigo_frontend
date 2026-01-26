@@ -44,8 +44,13 @@ export default function HorizontalScrollButtons({
 
   return (
     <div className={`w-full relative ${className}`}>
-      <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-3 pb-2">
+      <div 
+        className="overflow-x-auto scrollbar-hide scroll-smooth"
+        onWheel={(e) => {
+          e.currentTarget.scrollLeft += e.deltaY
+        }}
+      >
+        <div className="flex gap-2 pb-1">
           {buttonsToRender.map((button, index) => {
             const buttonColor = button.color || buttonColors[index % buttonColors.length]
             
@@ -58,7 +63,7 @@ export default function HorizontalScrollButtons({
                   borderRadius: '20.9626px',
                 }}
                 className={`
-                  flex-shrink-0 px-4 py-2 mx-1
+                  flex-shrink-0 px-4 py-2
                   font-medium text-sm transition-all duration-200
                   whitespace-nowrap text-white
                   hover:opacity-90

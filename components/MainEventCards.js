@@ -76,14 +76,14 @@ export default function MainEventCards({
   }
 
   return (
-    <div>
+    <div className="w-full">
       {/* Header Section */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[23px] font-bold ">{title}</h2>
+      <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
+        <h2 className="text-base sm:text-lg md:text-xl lg:text-[23px] font-bold">{title}</h2>
         {(onSeeAll || seeAllUrl) && (
           <button
             onClick={handleSeeAll}
-            className="flex items-center gap-1 text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium text-[13px]"
+            className="flex items-center gap-1 text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium text-xs md:text-[13px] flex-shrink-0"
           >
             <span>See All</span>
             <ChevronRight className="w-3 h-3" />
@@ -92,30 +92,30 @@ export default function MainEventCards({
       </div>
 
       {/* Event Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
       {eventsToShow.map((event) => (
         <div
           key={event.id}
-          className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden cursor-pointer group"
+          className="bg-white rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden cursor-pointer group w-full"
         >
           {/* Event Image */}
-          <div className="relative h-48 p-3 ">
-            <div className="relative w-full h-full overflow-hidden rounded-lg bg-gray-200">
+          <div className="relative h-48 sm:h-44 md:h-48 p-2 sm:p-2.5 md:p-3">
+            <div className="relative w-full h-full overflow-hidden rounded-md sm:rounded-lg bg-gray-200">
               <Image
                 src={event.image}
                 alt={event.title}
                 fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                 priority={event.id <= 4}
               />
               
               {/* Date - Left Side */}
-              <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg text-center z-10">
-                <div className="text-xs font-bold text-gray-900 leading-none">
+              <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-white/90 backdrop-blur-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-center z-10">
+                <div className="text-[10px] sm:text-xs font-bold text-gray-900 leading-none">
                   {formatDate(event.date).day}
                 </div>
-                <div className="text-xs font-bold text-gray-700 uppercase mt-1">
+                <div className="text-[9px] sm:text-xs font-bold text-gray-700 uppercase mt-0.5 sm:mt-1">
                   {formatDate(event.date).month}
                 </div>
               </div>
@@ -126,11 +126,11 @@ export default function MainEventCards({
                   e.stopPropagation()
                   toggleWishlist(event.id)
                 }}
-                className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors duration-200 z-10"
+                className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm p-1.5 sm:p-2 rounded-full hover:bg-white transition-colors duration-200 z-10"
                 aria-label="Add to wishlist"
               >
                 <Heart
-                  className={`w-5 h-5 transition-colors duration-200 ${
+                  className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${
                     wishlist.has(event.id)
                       ? 'fill-red-500 text-red-500'
                       : 'text-gray-700'
@@ -141,11 +141,11 @@ export default function MainEventCards({
           </div>
 
           {/* Event Details */}
-          <div className="px-4 pb-4">
-            <h3 className="text-[14px] font-medium text-gray-900 mb-1 line-clamp-2">
+          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+            <h3 className="text-sm sm:text-[14px] font-medium text-gray-900 mb-1 line-clamp-2">
               {event.title}
             </h3>
-            <p className="text-[13px] font-normal text-gray-600 line-clamp-1">
+            <p className="text-xs sm:text-[13px] font-normal text-gray-600 line-clamp-1">
               {event.location}
             </p>
           </div>

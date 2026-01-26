@@ -46,12 +46,37 @@ textarea::placeholder {
   color: rgb(156, 163, 175) !important; /* gray-400 */
 }
 
-/* Hide scrollbar for horizontal scroll buttons */
+/* Hide scrollbar for horizontal scroll buttons on mobile, show thin scrollbar on desktop */
 .scrollbar-hide {
   -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: thin; /* Firefox - thin scrollbar */
+  scrollbar-color: #cbd5e1 transparent; /* Firefox scrollbar color */
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  height: 6px; /* Chrome, Safari and Opera - thin scrollbar */
+}
+
+.scrollbar-hide::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1; /* gray-300 */
+  border-radius: 3px;
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8; /* gray-400 */
+}
+
+/* On mobile, completely hide scrollbar */
+@media (max-width: 768px) {
+  .scrollbar-hide {
+    scrollbar-width: none; /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
 }
