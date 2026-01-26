@@ -402,7 +402,7 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
       {/* Sign up link */}
       <div className="text-center pt-2">
         <p className="text-sm text-gray-600">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <button
             type="button"
             onClick={() => setCurrentView('signup')}
@@ -637,7 +637,7 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
 
       <div className="text-center pt-2">
         <p className="text-sm text-gray-600">
-          Didn't receive code?{' '}
+          Didn&apos;t receive code?{' '}
           <button
             type="button"
             className="text-purple-600 hover:text-purple-700 font-medium"
