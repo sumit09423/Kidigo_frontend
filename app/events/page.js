@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import CategoryFilter from '@/components/CategoryFilter'
 import FilterButtons from '@/components/FilterButtons'
@@ -9,7 +9,7 @@ import { getAllEvents, getEventsByCategory, buildEventFilters } from '@/lib/even
 import { getAllCategories } from '@/lib/categories'
 import { useLocation } from '@/contexts/LocationContext'
 
-export default function EventsPage() {
+function EventsPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const categoryFromUrl = searchParams.get('category')
@@ -229,5 +229,32 @@ export default function EventsPage() {
         </div>
       </section>
     </main>
+  )
+}
+
+export default function EventsPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gray-50">
+        <section className="py-4 border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="h-12 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </section>
+        <section className="py-6 md:py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="h-12 bg-gray-200 rounded animate-pulse mb-6"></div>
+            <div className="h-10 bg-gray-200 rounded animate-pulse mb-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-64 bg-gray-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+    }>
+      <EventsPageContent />
+    </Suspense>
   )
 }
