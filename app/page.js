@@ -1,48 +1,76 @@
 'use client'
 
-import HorizontalScrollButtons from '@/components/HorizontalScrollButtons'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import CategoryFilter from '@/components/CategoryFilter'
 import MainEventCards from '@/components/MainEventCards'
 import SmallEventCards from '@/components/SmallEventCards'
 import ImageCarousel from '@/components/ImageCarousel'
-import { getFeaturedEvents, getAllEvents } from '@/lib/events'
-import { LayoutGrid, Music, Activity, Film, Smile, UtensilsCrossed, Palette, Wrench } from 'lucide-react'
+import { getFeaturedEvents, getAllEvents, buildEventFilters } from '@/lib/events'
+import { useLocation } from '@/contexts/LocationContext'
 
 export default function Home() {
-  const featuredEvents = getFeaturedEvents()
-  const allEvents = getAllEvents()
-  
-  // Get sports events for the Sports & Fitness section
-  const sportsEvents = allEvents
-    .filter(event => 
-      event.category?.toLowerCase() === 'sports' || 
-      event.subCategory?.toLowerCase() === 'sports' ||
-      event.subCategory?.toLowerCase() === 'running' ||
-      event.subCategory?.toLowerCase() === 'basketball'
-    )
-    .slice(0, 3)
+  const router = useRouter()
+  const [featuredEvents, setFeaturedEvents] = useState([])
+  const [sportsEvents, setSportsEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const { location } = useLocation()
 
-  // Category buttons - same design as events page (colors + icons)
-  const categoryButtons = [
-    { id: 'all', label: 'All Events', color: '#6B7280', icon: LayoutGrid },
-    { id: 'concerts', label: 'Concerts', color: '#F59762', icon: Music },
-    { id: 'sports', label: 'Sports', color: '#F0635A', icon: Activity },
-    { id: 'theater', label: 'Theater', color: '#9B59B6', icon: Film },
-    { id: 'comedy', label: 'Comedy', color: '#E67E22', icon: Smile },
-    { id: 'food', label: 'Food & Drink', color: '#E74C3C', icon: UtensilsCrossed },
-    { id: 'art', label: 'Art & Culture', color: '#4285F4', icon: Palette },
-    { id: 'workshops', label: 'Workshops', color: '#29D697', icon: Wrench },
-  ]
+  useEffect(() => {
+    async function loadEvents() {
+      try {
+        setLoading(true)
+        
+        // Build filters - include cityId if available
+        const filters = buildEventFilters(location)
+        
+        const [featured, all] = await Promise.all([
+          getFeaturedEvents(),
+          getAllEvents(filters)
+        ])
+        
+        console.log('Loaded events:', { featured: featured?.length, all: all?.length })
+        
+        setFeaturedEvents(featured || [])
+        
+        // Get sports events for the Sports & Fitness section
+        const sports = (all || [])
+          .filter(event => 
+            event.category?.toLowerCase() === 'sports' || 
+            event.subCategory?.toLowerCase() === 'sports' ||
+            event.subCategory?.toLowerCase() === 'running' ||
+            event.subCategory?.toLowerCase() === 'basketball'
+          )
+          .slice(0, 3)
+        
+        setSportsEvents(sports)
+      } catch (error) {
+        console.error('Error loading events:', error)
+        // Show error to user instead of stub data
+        alert(`Failed to load events: ${error.message || 'Unknown error'}. Please check your connection and try again.`)
+        setFeaturedEvents([])
+        setSportsEvents([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadEvents()
+  }, [location])
 
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Category Filter Section - same design as events page */}
       <section className="py-4 border-b border-gray-200 mb-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <HorizontalScrollButtons
-            buttons={categoryButtons}
-            onButtonClick={(button) => {
-              console.log('Selected category:', button)
-              // Add your filter logic here
+          <CategoryFilter
+            onCategoryClick={(button) => {
+              // Navigate to events page with selected category
+              if (button.id === 'all') {
+                router.push('/events', { scroll: false })
+              } else {
+                router.push(`/events?category=${button.id}`, { scroll: false })
+              }
             }}
             defaultSelected="all"
           />
@@ -59,6 +87,7 @@ export default function Home() {
                 title="Featured Events"
                 events={featuredEvents}
                 seeAllUrl="/events"
+                loading={loading}
               />
               
               {/* Invite Friend Image Carousel */}
@@ -99,6 +128,7 @@ export default function Home() {
                   title="Sports & Fitness"
                   events={sportsEvents}
                   seeAllUrl="/events"
+                  loading={loading}
                 />
               </div>
             </div>

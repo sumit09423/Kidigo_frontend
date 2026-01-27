@@ -78,3 +78,32 @@ export async function testEmail() {
   const response = await api.get(AUTH_ENDPOINTS.TEST_EMAIL);
   return response;
 }
+
+/**
+ * Request password reset code
+ * @param {object} payload - { email }
+ * @returns {Promise<object>} { status, message }
+ */
+export async function forgotPassword(payload) {
+  const response = await api.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, payload);
+  return response;
+}
+
+/**
+ * Reset password with code
+ * @param {object} payload - { email, code, newPassword }
+ * @returns {Promise<object>} { status, message }
+ */
+export async function resetPassword(payload) {
+  const response = await api.post(AUTH_ENDPOINTS.RESET_PASSWORD, payload);
+  return response;
+}
+
+/**
+ * Get current user details (requires authentication)
+ * @returns {Promise<object>} { status, message, data: { user } }
+ */
+export async function getUserDetails() {
+  const response = await api.get(AUTH_ENDPOINTS.ME);
+  return response;
+}

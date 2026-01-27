@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { getAccessToken, removeAccessToken } from '@/API/http/client'
-import { logout as apiLogout } from '@/API/auth/auth.client'
+import { logout as apiLogout, getUserDetails } from '@/API/auth/auth.client'
 
 const AuthContext = createContext(null)
 
@@ -55,12 +55,34 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const refreshUser = async () => {
+    // Only refresh if user is authenticated
+    if (!getAccessToken()) {
+      return
+    }
+
+    try {
+      const response = await getUserDetails()
+      if (response.status === 'success' && response.data?.user) {
+        login(response.data.user)
+        return response.data.user
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error)
+      // If 401, user might need to login again
+      if (error.status === 401) {
+        logout()
+      }
+      throw error
+    }
+  }
+
   const isAuthenticated = () => {
     return !!user && !!getAccessToken()
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, refreshUser, isAuthenticated, isLoading }}>
       {children}
     </AuthContext.Provider>
   )

@@ -20,27 +20,7 @@
  * and create a toast utility that matches this interface.
  */
 
-/**
- * Simple toast implementation using console for now
- * Replace this with actual toast library (react-hot-toast, react-toastify, etc.)
- */
-const toast = {
-  loading: (message) => {
-    console.log(`⏳ ${message}`);
-    return message; // Return ID for consistency
-  },
-  success: (message) => {
-    console.log(`✅ ${message}`);
-    return message;
-  },
-  error: (message) => {
-    console.error(`❌ ${message}`);
-    return message;
-  },
-  dismiss: (id) => {
-    // No-op for console implementation
-  },
-};
+import { toast } from '@/lib/toast';
 
 /**
  * Wrapper function that adds toast notifications to API calls
@@ -92,5 +72,5 @@ export const toastPromise = (promise, messages) => {
   return withToast(promise, messages);
 };
 
-// Export toast instance for direct use if needed
+// Re-export toast instance for direct use in UI if needed
 export { toast };

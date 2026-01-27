@@ -1,9 +1,14 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { MapPin, Calendar } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { getUpcomingEvents, getAllEvents } from '@/lib/events'
+import { getUpcomingEvents, getAllEvents, buildEventFilters } from '@/lib/events'
+import { useLocation } from '@/contexts/LocationContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { getBookmarks } from '@/lib/bookmarks'
+import SmallEventCardSkeleton from './SmallEventCardSkeleton'
 
 export default function SmallEventCards({ 
   upcomingEvents = [],
@@ -11,27 +16,71 @@ export default function SmallEventCards({
   myEvents = []
 }) {
   const router = useRouter()
+  const { location } = useLocation()
+  const { isAuthenticated } = useAuth()
+  const [defaultUpcoming, setDefaultUpcoming] = useState([])
+  const [defaultSaved, setDefaultSaved] = useState([])
+  const [defaultMy, setDefaultMy] = useState([])
+  const [loading, setLoading] = useState(true)
   
-  // Get events from JSON if not provided
-  const allEvents = getAllEvents()
+  useEffect(() => {
+    async function loadEvents() {
+      try {
+        setLoading(true)
+        
+        // Build filters - include cityId if available
+        const filters = buildEventFilters(location)
+        
+        const [upcoming, all, bookmarks] = await Promise.all([
+          getUpcomingEvents(),
+          getAllEvents(filters),
+          // Try to load bookmarks if user is authenticated, otherwise return empty array
+          isAuthenticated() ? getBookmarks().catch(() => []) : Promise.resolve([])
+        ])
+        
+        console.log('Loaded sidebar events:', { 
+          upcoming: upcoming?.length, 
+          all: all?.length,
+          bookmarks: bookmarks?.length 
+        })
+        
+        // Get upcoming events, or fallback to recent events if none are upcoming
+        const upcomingList = upcoming.length > 0 
+          ? upcoming.slice(0, 6)
+          : (all || []).slice(0, 6) // Fallback to first 6 events if no upcoming events
+        
+        setDefaultUpcoming(upcomingList)
+        
+        // For saved events, use actual bookmarks if available, otherwise fallback to featured events
+        const saved = bookmarks && bookmarks.length > 0
+          ? bookmarks.slice(0, 3)
+          : (all || [])
+              .filter(event => event.featured)
+              .slice(0, 3)
+        
+        setDefaultSaved(saved)
+        
+        // For my events, use another set (e.g., events user might be interested in)
+        const my = (all || [])
+          .filter(event => event.status === 'upcoming')
+          .slice(3, 5)
+        
+        setDefaultMy(my)
+      } catch (error) {
+        console.error('Error loading events:', error)
+        // Don't show alert here as it's a sidebar component
+        setDefaultUpcoming([])
+        setDefaultSaved([])
+        setDefaultMy([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadEvents()
+  }, [location, isAuthenticated])
   
-  // Get upcoming events, or fallback to recent events if none are upcoming
-  const upcomingFromJson = getUpcomingEvents()
-  const defaultUpcoming = upcomingFromJson.length > 0 
-    ? upcomingFromJson.slice(0, 6)
-    : allEvents.slice(0, 6) // Fallback to first 6 events if no upcoming events
-  
-  // For saved events, use a different set of events (e.g., featured or different category)
-  const defaultSaved = allEvents
-    .filter(event => event.featured)
-    .slice(0, 3)
-  
-  // For my events, use another set (e.g., events user might be interested in)
-  const defaultMy = allEvents
-    .filter(event => event.status === 'upcoming')
-    .slice(3, 5)
-  
-  // Use provided events or default from JSON
+  // Use provided events or default from API
   const upcoming = upcomingEvents.length > 0 ? upcomingEvents : defaultUpcoming
   const saved = savedEvents.length > 0 ? savedEvents : defaultSaved
   const my = myEvents.length > 0 ? myEvents : defaultMy
@@ -109,10 +158,12 @@ export default function SmallEventCards({
     )
   }
 
-  const EventSection = ({ title, events }) => (
+  const EventSection = ({ title, events, loading: sectionLoading, skeletonCount = 3 }) => (
     <div className="space-y-3">
       <h3 className="text-base md:text-lg font-bold text-gray-900">{title}</h3>
-      {events.length > 0 ? (
+      {sectionLoading ? (
+        <SmallEventCardSkeleton count={skeletonCount} />
+      ) : events.length > 0 ? (
         <div className="space-y-2 md:space-y-3">
           {events.map((event) => (
             <EventCard key={event.id} event={event} />
@@ -129,13 +180,13 @@ export default function SmallEventCards({
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Upcoming Events Section */}
-      <EventSection title="Upcoming Events" events={upcoming} />
+      <EventSection title="Upcoming Events" events={upcoming} loading={loading} skeletonCount={6} />
 
       {/* Saved Events Section */}
-      <EventSection title="Saved Events" events={saved} />
+      <EventSection title="Saved Events" events={saved} loading={loading} skeletonCount={3} />
 
       {/* My Events Section */}
-      <EventSection title="My Events" events={my} />
+      <EventSection title="My Events" events={my} loading={loading} skeletonCount={2} />
     </div>
   )
 }

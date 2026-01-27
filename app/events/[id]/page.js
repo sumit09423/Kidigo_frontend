@@ -5,25 +5,55 @@ import Image from 'next/image'
 import { ArrowLeft, Bookmark, Calendar, MapPin, User, Share2, ChevronRight } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { getEventById } from '@/lib/events'
+import { useAuth } from '@/contexts/AuthContext'
+import { toggleBookmark, isEventBookmarked } from '@/lib/bookmarks'
+import { withToast } from '@/API/http/withToast'
 
 export default function EventDetailsPage() {
   const params = useParams()
   const router = useRouter()
+  const { user, isAuthenticated, refreshUser } = useAuth()
   const [isBookmarked, setIsBookmarked] = useState(false)
+  const [isProcessingBookmark, setIsProcessingBookmark] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Check if event is bookmarked when user or event changes
   useEffect(() => {
-    const eventData = getEventById(params.id)
-    if (eventData) {
-      setEvent(eventData)
+    if (event && user?.savedEvents) {
+      const bookmarked = isEventBookmarked(event.id, user.savedEvents)
+      setIsBookmarked(bookmarked)
     } else {
-      // Event not found, redirect or show error
-      router.push('/events')
+      setIsBookmarked(false)
     }
-    setLoading(false)
+  }, [event, user])
+
+  useEffect(() => {
+    async function loadEvent() {
+      try {
+        setLoading(true)
+        console.log('Loading event with ID:', params.id)
+        const eventData = await getEventById(params.id)
+        console.log('Loaded event:', eventData)
+        if (eventData) {
+          setEvent(eventData)
+        } else {
+          // Event not found, redirect or show error
+          alert('Event not found')
+          router.push('/events')
+        }
+      } catch (error) {
+        console.error('Error loading event:', error)
+        alert(`Failed to load event: ${error.message || 'Unknown error'}. Please check your connection and try again.`)
+        router.push('/events')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadEvent()
   }, [params.id, router])
 
   if (loading) {
@@ -61,9 +91,45 @@ export default function EventDetailsPage() {
 
   const dateInfo = formatDate(event.date)
 
-  const handleBookmark = (e) => {
+  const handleBookmark = async (e) => {
     e.stopPropagation()
-    setIsBookmarked(!isBookmarked)
+    
+    // Check if user is authenticated
+    if (!isAuthenticated()) {
+      alert('Please login to bookmark events')
+      return
+    }
+
+    if (!event || isProcessingBookmark) {
+      return
+    }
+
+    const wasBookmarked = isBookmarked
+
+    // Optimistically update UI
+    setIsBookmarked(!wasBookmarked)
+    setIsProcessingBookmark(true)
+
+    try {
+      await withToast(
+        toggleBookmark(event.id, wasBookmarked),
+        {
+          loading: wasBookmarked ? 'Removing bookmark...' : 'Adding bookmark...',
+          success: wasBookmarked ? 'Bookmark removed' : 'Event bookmarked',
+          error: 'Failed to update bookmark'
+        }
+      )
+      
+      // Refresh user data to get updated bookmarks
+      if (refreshUser) {
+        await refreshUser()
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setIsBookmarked(wasBookmarked)
+    } finally {
+      setIsProcessingBookmark(false)
+    }
   }
 
   const handleInvite = () => {
@@ -126,7 +192,8 @@ export default function EventDetailsPage() {
           {/* Bookmark Button - Top Right */}
           <button
             onClick={handleBookmark}
-            className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors z-10"
+            disabled={isProcessingBookmark}
+            className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors z-10 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Bookmark event"
           >
             <Bookmark 

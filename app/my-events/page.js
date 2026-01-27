@@ -1,55 +1,67 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Calendar, ArrowRight, Activity, Music, Wrench, Palette } from 'lucide-react'
 import HorizontalScrollButtons from '@/components/HorizontalScrollButtons'
+import { getAllCategories, transformCategoryToButton } from '@/lib/categories'
 import Link from 'next/link'
 
 export default function MyEventsPage() {
   const router = useRouter()
   const [selectedTab, setSelectedTab] = useState('upcoming') // 'upcoming' or 'past'
+  const [categoryButtons, setCategoryButtons] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
 
-  // Category buttons - matching the design from the image
-  const categoryButtons = [
-    { 
-      id: 'sports', 
-      label: 'Sports', 
-      color: '#F0635A',
-      icon: Activity
-    },
-    { 
-      id: 'music', 
-      label: 'Music', 
-      color: '#F59762',
-      icon: Music
-    },
-    { 
-      id: 'arts', 
-      label: 'Arts', 
-      color: '#29D697',
-      icon: Wrench
-    },
-    { 
-      id: 'art', 
-      label: 'Art', 
-      color: '#4285F4',
-      icon: Palette
-    },
-  ]
+  // Icon mapping for categories
+  const iconMap = {
+    'sports': Activity,
+    'music': Music,
+    'arts': Wrench,
+    'art': Palette,
+  }
+
+  // Load categories from API
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        setCategoriesLoading(true)
+        const categories = await getAllCategories({ limit: 50 })
+        
+        // Transform categories to button format with index for color assignment
+        const buttons = categories.map((cat, index) => transformCategoryToButton(cat, index, iconMap))
+        
+        setCategoryButtons(buttons)
+      } catch (error) {
+        console.error('Error loading categories:', error)
+        // Fallback to empty array
+        setCategoryButtons([])
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+    
+    loadCategories()
+  }, [])
 
   return (
     <div className="min-h-screen bg-white">
       {/* Category Filter Section */}
       <section className="py-4 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <HorizontalScrollButtons
-            buttons={categoryButtons}
-            onButtonClick={(button) => {
-              console.log('Selected category:', button)
-            }}
-            defaultSelected="sports"
-          />
+          {categoriesLoading ? (
+            <div className="h-12 flex items-center">
+              <div className="h-8 bg-gray-200 rounded animate-pulse w-64"></div>
+            </div>
+          ) : (
+            <HorizontalScrollButtons
+              buttons={categoryButtons}
+              onButtonClick={(button) => {
+                console.log('Selected category:', button)
+              }}
+              defaultSelected={categoryButtons[0]?.id}
+            />
+          )}
         </div>
       </section>
 

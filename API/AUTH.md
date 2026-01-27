@@ -8,12 +8,16 @@ This document describes the **Authentication API** flow, endpoints, request/resp
 
 ## Base URL
 
+The base URL is configured via the `NEXT_PUBLIC_API_BASE_URL` environment variable.
+
 | Environment | Base URL |
 |-------------|----------|
-| Development | `http://localhost:5000` |
-| Production  | `https://api.kidigo.com` |
+| Development | `http://localhost:5000` (default) |
+| Production  | Set via `NEXT_PUBLIC_API_BASE_URL` env var |
 
 All Auth endpoints live under **`/api/auth`**.
+
+**Note:** In curl examples, replace `${NEXT_PUBLIC_API_BASE_URL}` with your actual base URL or use the environment variable directly.
 
 ---
 
@@ -378,6 +382,301 @@ Checks email configuration (e.g. SMTP). Useful for debugging only; not needed fo
 
 ---
 
+### 6. Forgot Password
+
+Request a password reset code. Sends a 6-digit reset code to the user's email. **60-second cooldown** between requests.
+
+| Method | Path | Auth |
+|--------|------|------|
+| `POST` | `/api/auth/forgot-password` | No |
+
+**Request body**
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+- `email`: required, valid email
+
+**Success response** `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "If the email exists, a reset code has been sent."
+}
+```
+
+**Error responses**
+
+| Status | Meaning |
+|--------|---------|
+| `400` | Validation failed (missing/invalid email) |
+| `429` | Too many requests – e.g. "Please wait X seconds before requesting a new reset code" |
+| `500` | Internal server error |
+
+**Validation error example** `400 Bad Request`
+
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Please provide a valid email address"
+    }
+  ]
+}
+```
+
+**Cooldown error example** `429 Too Many Requests`
+
+```json
+{
+  "status": "error",
+  "message": "Please wait X seconds before requesting a new reset code"
+}
+```
+
+---
+
+### 7. Reset Password
+
+Reset password using the 6-digit code sent to email. Code expires after 10 minutes.
+
+| Method | Path | Auth |
+|--------|------|------|
+| `POST` | `/api/auth/reset-password` | No |
+
+**Request body**
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456",
+  "newPassword": "NewPassword123"
+}
+```
+
+- `email`: required, valid email
+- `code`: required, exactly 6 digits (numeric only)
+- `newPassword`: required, min 6 chars, at least one lowercase, one uppercase, one number
+
+**Success response** `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "Password reset successfully"
+}
+```
+
+**Error responses**
+
+| Status | Meaning |
+|--------|---------|
+| `400` | Validation failed / Invalid reset code / Reset code expired |
+| `500` | Internal server error |
+
+**Validation error examples** `400 Bad Request`
+
+Missing email:
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Please provide a valid email address"
+    }
+  ]
+}
+```
+
+Missing/invalid code:
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "code",
+      "message": "Reset code must be exactly 6 digits"
+    }
+  ]
+}
+```
+
+Code not numeric:
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "code",
+      "message": "Reset code must contain only numbers"
+    }
+  ]
+}
+```
+
+Password too short:
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "newPassword",
+      "message": "Password must be at least 6 characters long"
+    }
+  ]
+}
+```
+
+Password complexity:
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "newPassword",
+      "message": "Password must contain at least one lowercase letter, one uppercase letter, and one number"
+    }
+  ]
+}
+```
+
+**Business logic error examples** `400 Bad Request`
+
+Invalid reset code:
+```json
+{
+  "status": "error",
+  "message": "Invalid reset code"
+}
+```
+
+Reset code expired:
+```json
+{
+  "status": "error",
+  "message": "Reset code has expired. Please request a new code."
+}
+```
+
+---
+
+### 8. Get User Details (Me)
+
+Get current authenticated user's details. Requires valid JWT token.
+
+| Method | Path | Auth |
+|--------|------|------|
+| `GET` | `/api/auth/me` | Yes (Bearer token) |
+
+**Request headers**
+
+```http
+Authorization: Bearer <your-jwt-token>
+```
+
+**Success response** `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "User details retrieved successfully",
+  "data": {
+    "user": {
+      "id": "60f7b3b3b3b3b3b3b3b3b3b3",
+      "email": "user@example.com",
+      "role": "user",
+      "isVerified": true,
+      "profileImage": "https://example.com/profile.jpg",
+      "createdAt": "2023-07-20T10:30:00.000Z",
+      "updatedAt": "2023-07-20T10:30:00.000Z"
+    }
+  }
+}
+```
+
+**Response with null profileImage**
+
+```json
+{
+  "status": "success",
+  "message": "User details retrieved successfully",
+  "data": {
+    "user": {
+      "id": "60f7b3b3b3b3b3b3b3b3b3b3",
+      "email": "user@example.com",
+      "role": "user",
+      "isVerified": true,
+      "profileImage": null,
+      "createdAt": "2023-07-20T10:30:00.000Z",
+      "updatedAt": "2023-07-20T10:30:00.000Z"
+    }
+  }
+}
+```
+
+**Error responses**
+
+| Status | Meaning |
+|--------|---------|
+| `401` | Missing/invalid/expired token / User not found / User not verified |
+
+**Error examples** `401 Unauthorized`
+
+No token:
+```json
+{
+  "status": "error",
+  "message": "Access denied. No token provided."
+}
+```
+
+Invalid token:
+```json
+{
+  "status": "error",
+  "message": "Invalid token. Please login again."
+}
+```
+
+Expired token:
+```json
+{
+  "status": "error",
+  "message": "Token has expired. Please login again."
+}
+```
+
+User not found:
+```json
+{
+  "status": "error",
+  "message": "Token is valid but user no longer exists"
+}
+```
+
+User not verified:
+```json
+{
+  "status": "error",
+  "message": "Please verify your email before accessing protected resources"
+}
+```
+
+---
+
 ## Quick Reference
 
 | Endpoint | Method | Purpose |
@@ -386,11 +685,539 @@ Checks email configuration (e.g. SMTP). Useful for debugging only; not needed fo
 | `/api/auth/verify-otp` | `POST` | Verify OTP, get JWT |
 | `/api/auth/login` | `POST` | Login (user/vendor), get JWT |
 | `/api/auth/resend-otp` | `POST` | Resend OTP (60s cooldown) |
+| `/api/auth/forgot-password` | `POST` | Request password reset code |
+| `/api/auth/reset-password` | `POST` | Reset password with code |
+| `/api/auth/me` | `GET` | Get current user details (requires auth) |
 | `/api/auth/test-email` | `GET` | Test email config (debug) |
 
 - **Content-Type**: `application/json` for all `POST` bodies.  
 - **Base path**: `/api`; auth under `/api/auth`.  
 - **JWT**: Send as `Authorization: Bearer <token>` on protected routes.
+
+---
+
+## cURL Examples
+
+All examples use the `NEXT_PUBLIC_API_BASE_URL` environment variable. Replace `${NEXT_PUBLIC_API_BASE_URL}` with your actual base URL (e.g., `http://localhost:5000` or `https://api.kidigo.com`).
+
+### Forgot Password API
+
+**Success scenario**
+
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com"
+  }'
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "If the email exists, a reset code has been sent."
+}
+```
+
+**Validation error scenarios**
+
+1. Missing email:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Please provide a valid email address"
+    }
+  ]
+}
+```
+
+2. Invalid email format:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "invalid-email"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Please provide a valid email address"
+    }
+  ]
+}
+```
+
+3. Cooldown period (too many requests):
+```bash
+# Request 1
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+# Request 2 (within 60 seconds)
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+```
+
+**Response (429 Too Many Requests):**
+```json
+{
+  "status": "error",
+  "message": "Please wait X seconds before requesting a new reset code"
+}
+```
+
+### Reset Password API
+
+**Success scenario**
+
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "123456",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Password reset successfully"
+}
+```
+
+**Validation error scenarios**
+
+1. Missing email:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "123456",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Please provide a valid email address"
+    }
+  ]
+}
+```
+
+2. Missing reset code:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "code",
+      "message": "Reset code must be exactly 6 digits"
+    }
+  ]
+}
+```
+
+3. Invalid reset code format (not 6 digits):
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "12345",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "code",
+      "message": "Reset code must be exactly 6 digits"
+    }
+  ]
+}
+```
+
+4. Reset code contains non-numeric characters:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "12345a",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "code",
+      "message": "Reset code must contain only numbers"
+    }
+  ]
+}
+```
+
+5. Missing new password:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "123456"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "newPassword",
+      "message": "New password is required"
+    }
+  ]
+}
+```
+
+6. Password too short (less than 6 characters):
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "123456",
+    "newPassword": "12345"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "newPassword",
+      "message": "Password must be at least 6 characters long"
+    }
+  ]
+}
+```
+
+7. Password doesn't meet complexity requirements:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "123456",
+    "newPassword": "password"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "newPassword",
+      "message": "Password must contain at least one lowercase letter, one uppercase letter, and one number"
+    }
+  ]
+}
+```
+
+**Business logic error scenarios**
+
+8. Invalid reset code:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "999999",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Invalid reset code"
+}
+```
+
+9. Reset code expired:
+```bash
+# After 10 minutes of code generation
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "123456",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Reset code has expired. Please request a new code."
+}
+```
+
+10. User not found:
+```bash
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "nonexistent@example.com",
+    "code": "123456",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "Invalid reset code"
+}
+```
+
+### Get User Details API
+
+**Success scenario**
+
+```bash
+curl -X GET ${NEXT_PUBLIC_API_BASE_URL}/api/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "User details retrieved successfully",
+  "data": {
+    "user": {
+      "id": "60f7b3b3b3b3b3b3b3b3b3b3",
+      "email": "user@example.com",
+      "role": "user",
+      "isVerified": true,
+      "profileImage": "https://example.com/profile.jpg",
+      "createdAt": "2023-07-20T10:30:00.000Z",
+      "updatedAt": "2023-07-20T10:30:00.000Z"
+    }
+  }
+}
+```
+
+**Response (with null profileImage):**
+```json
+{
+  "status": "success",
+  "message": "User details retrieved successfully",
+  "data": {
+    "user": {
+      "id": "60f7b3b3b3b3b3b3b3b3b3b3",
+      "email": "user@example.com",
+      "role": "user",
+      "isVerified": true,
+      "profileImage": null,
+      "createdAt": "2023-07-20T10:30:00.000Z",
+      "updatedAt": "2023-07-20T10:30:00.000Z"
+    }
+  }
+}
+```
+
+**Error scenarios**
+
+1. Missing token:
+```bash
+curl -X GET ${NEXT_PUBLIC_API_BASE_URL}/api/auth/me
+```
+
+**Response (401 Unauthorized):**
+```json
+{
+  "status": "error",
+  "message": "Access denied. No token provided."
+}
+```
+
+2. Invalid token:
+```bash
+curl -X GET ${NEXT_PUBLIC_API_BASE_URL}/api/auth/me \
+  -H "Authorization: Bearer invalid_token_here"
+```
+
+**Response (401 Unauthorized):**
+```json
+{
+  "status": "error",
+  "message": "Invalid token. Please login again."
+}
+```
+
+3. Expired token:
+```bash
+curl -X GET ${NEXT_PUBLIC_API_BASE_URL}/api/auth/me \
+  -H "Authorization: Bearer expired_token_here"
+```
+
+**Response (401 Unauthorized):**
+```json
+{
+  "status": "error",
+  "message": "Token has expired. Please login again."
+}
+```
+
+4. User not found (token valid but user deleted):
+```bash
+curl -X GET ${NEXT_PUBLIC_API_BASE_URL}/api/auth/me \
+  -H "Authorization: Bearer valid_token_for_deleted_user"
+```
+
+**Response (401 Unauthorized):**
+```json
+{
+  "status": "error",
+  "message": "Token is valid but user no longer exists"
+}
+```
+
+5. User not verified:
+```bash
+curl -X GET ${NEXT_PUBLIC_API_BASE_URL}/api/auth/me \
+  -H "Authorization: Bearer token_for_unverified_user"
+```
+
+**Response (401 Unauthorized):**
+```json
+{
+  "status": "error",
+  "message": "Please verify your email before accessing protected resources"
+}
+```
+
+### Complete Test Flow Example
+
+```bash
+# Step 1: Request password reset
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+# Step 2: Check email for reset code (e.g., "123456")
+
+# Step 3: Reset password with code
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "code": "123456",
+    "newPassword": "NewPassword123"
+  }'
+
+# Step 4: Login with new password
+curl -X POST ${NEXT_PUBLIC_API_BASE_URL}/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "NewPassword123"
+  }'
+
+# Step 5: Get user details with token from login
+curl -X GET ${NEXT_PUBLIC_API_BASE_URL}/api/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_FROM_LOGIN"
+```
+
+### Summary of Validation Messages
+
+**Forgot Password API:**
+- Email required: "Please provide a valid email address"
+- Invalid email format: "Please provide a valid email address"
+- Cooldown active: "Please wait X seconds before requesting a new reset code"
+
+**Reset Password API:**
+- Email required: "Please provide a valid email address"
+- Invalid email format: "Please provide a valid email address"
+- Code required: "Reset code must be exactly 6 digits"
+- Code not 6 digits: "Reset code must be exactly 6 digits"
+- Code not numeric: "Reset code must contain only numbers"
+- Password required: "New password is required"
+- Password too short: "Password must be at least 6 characters long"
+- Password complexity: "Password must contain at least one lowercase letter, one uppercase letter, and one number"
+- Invalid reset code: "Invalid reset code"
+- Reset code expired: "Reset code has expired. Please request a new code."
+
+**Get User Details API:**
+- No token: "Access denied. No token provided."
+- Invalid token: "Invalid token. Please login again."
+- Expired token: "Token has expired. Please login again."
+- User not found: "Token is valid but user no longer exists"
+- User not verified: "Please verify your email before accessing protected resources"
 
 ---
 

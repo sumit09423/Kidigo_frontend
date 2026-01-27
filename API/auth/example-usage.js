@@ -5,7 +5,7 @@
  * Copy and adapt these patterns to your actual components.
  */
 
-import { register, login, verifyOtp, resendOtp, logout } from './auth.client';
+import { register, login, verifyOtp, resendOtp, logout, forgotPassword, resetPassword, getUserDetails } from './auth.client';
 import { withToast } from '../http/withToast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -220,3 +220,106 @@ export default function LoginComponent() {
   );
 }
 */
+
+// ============================================
+// Example 7: Forgot Password
+// ============================================
+export async function handleForgotPassword(email, setCooldown) {
+  try {
+    const response = await withToast(
+      forgotPassword({ email }),
+      {
+        loading: 'Sending reset code...',
+        success: 'If the email exists, a reset code has been sent.',
+        error: 'Failed to send reset code. Please try again.',
+      }
+    );
+
+    // Start 60-second cooldown
+    if (setCooldown) {
+      let seconds = 60;
+      setCooldown(seconds);
+      const interval = setInterval(() => {
+        seconds--;
+        if (seconds > 0) {
+          setCooldown(seconds);
+        } else {
+          setCooldown(0);
+          clearInterval(interval);
+        }
+      }, 1000);
+    }
+
+    return response;
+  } catch (error) {
+    if (error.status === 429) {
+      // Too many requests - cooldown active
+      console.error('Cooldown active:', error.message);
+    } else if (error.status === 400) {
+      // Validation error
+      console.error('Validation error:', error.message);
+    }
+    throw error;
+  }
+}
+
+// ============================================
+// Example 8: Reset Password
+// ============================================
+export async function handleResetPassword(email, code, newPassword) {
+  try {
+    const response = await withToast(
+      resetPassword({ email, code, newPassword }),
+      {
+        loading: 'Resetting password...',
+        success: 'Password reset successfully! You can now login with your new password.',
+        error: 'Failed to reset password. Please check your code and try again.',
+      }
+    );
+
+    return response;
+  } catch (error) {
+    if (error.status === 400) {
+      // Invalid code, expired code, or validation error
+      if (error.errors) {
+        error.errors.forEach(err => {
+          console.error(`Validation error: ${err.field} - ${err.message}`);
+        });
+      } else {
+        console.error('Reset error:', error.message);
+      }
+    }
+    throw error;
+  }
+}
+
+// ============================================
+// Example 9: Get User Details (Profile Page)
+// ============================================
+export async function handleGetUserDetails(authContext) {
+  try {
+    const response = await getUserDetails();
+    
+    if (response.status === 'success' && response.data?.user) {
+      const userData = response.data.user;
+      
+      // Update AuthContext with latest user data
+      if (authContext && authContext.login) {
+        authContext.login(userData);
+      }
+      
+      return userData;
+    }
+    
+    throw new Error('Failed to fetch user details');
+  } catch (error) {
+    if (error.status === 401) {
+      // Token expired or invalid - user needs to login again
+      console.error('Authentication error:', error.message);
+      if (authContext && authContext.logout) {
+        authContext.logout();
+      }
+    }
+    throw error;
+  }
+}

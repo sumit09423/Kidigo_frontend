@@ -2,29 +2,95 @@
 
 import Image from 'next/image'
 import { ChevronRight, Bookmark, MapPin } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import EventCardSkeleton from './EventCardSkeleton'
+import { useAuth } from '@/contexts/AuthContext'
+import { toggleBookmark, isEventBookmarked } from '@/lib/bookmarks'
+import { withToast } from '@/API/http/withToast'
 
 export default function MainEventCards({ 
   events = [], 
   title = 'Outdoors & Adventure',
   onSeeAll,
   seeAllUrl,
-  variant = 'default' // 'default' or 'category'
+  variant = 'default', // 'default' or 'category'
+  loading = false // Show skeleton when loading
 }) {
   const router = useRouter()
-  const [wishlist, setWishlist] = useState(new Set())
+  const { user, isAuthenticated, refreshUser } = useAuth()
+  const [bookmarkedEvents, setBookmarkedEvents] = useState(new Set())
+  const [processingBookmarks, setProcessingBookmarks] = useState(new Set())
 
-  const toggleWishlist = (eventId) => {
-    setWishlist((prev) => {
-      const newWishlist = new Set(prev)
-      if (newWishlist.has(eventId)) {
-        newWishlist.delete(eventId)
+  // Initialize bookmarked events from user data
+  useEffect(() => {
+    if (user?.savedEvents && Array.isArray(user.savedEvents)) {
+      const bookmarkedIds = new Set(user.savedEvents.map(event => event.id))
+      setBookmarkedEvents(bookmarkedIds)
+    }
+  }, [user])
+
+  const handleToggleBookmark = async (eventId, e) => {
+    e.stopPropagation()
+    
+    // Check if user is authenticated
+    if (!isAuthenticated()) {
+      // Optionally show login modal or redirect
+      alert('Please login to bookmark events')
+      return
+    }
+
+    // Prevent multiple clicks while processing
+    if (processingBookmarks.has(eventId)) {
+      return
+    }
+
+    const isCurrentlyBookmarked = bookmarkedEvents.has(eventId)
+
+    // Optimistically update UI
+    setBookmarkedEvents(prev => {
+      const newSet = new Set(prev)
+      if (isCurrentlyBookmarked) {
+        newSet.delete(eventId)
       } else {
-        newWishlist.add(eventId)
+        newSet.add(eventId)
       }
-      return newWishlist
+      return newSet
     })
+    setProcessingBookmarks(prev => new Set(prev).add(eventId))
+
+    try {
+      await withToast(
+        toggleBookmark(eventId, isCurrentlyBookmarked),
+        {
+          loading: isCurrentlyBookmarked ? 'Removing bookmark...' : 'Adding bookmark...',
+          success: isCurrentlyBookmarked ? 'Bookmark removed' : 'Event bookmarked',
+          error: 'Failed to update bookmark'
+        }
+      )
+      
+      // Refresh user data to get updated bookmarks
+      if (refreshUser) {
+        await refreshUser()
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setBookmarkedEvents(prev => {
+        const newSet = new Set(prev)
+        if (isCurrentlyBookmarked) {
+          newSet.add(eventId)
+        } else {
+          newSet.delete(eventId)
+        }
+        return newSet
+      })
+    } finally {
+      setProcessingBookmarks(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(eventId)
+        return newSet
+      })
+    }
   }
 
   const formatDate = (dateString) => {
@@ -50,41 +116,7 @@ export default function MainEventCards({
     return ''
   }
 
-  // Default events if none provided
-  const defaultEvents = [
-    {
-      id: 1,
-      title: 'Summer Music Festival',
-      date: '2024-07-15',
-      time: '7:00 PM',
-      location: 'Central Park',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop&auto=format',
-      price: '$45',
-      category: 'concerts'
-    },
-    {
-      id: 2,
-      title: 'Tech Conference 2024',
-      date: '2024-08-20',
-      time: '9:00 AM',
-      location: 'Convention Center',
-      image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=800&h=600&fit=crop&auto=format',
-      price: '$150',
-      category: 'workshops'
-    },
-    {
-      id: 3,
-      title: 'Broadway Show',
-      date: '2024-09-10',
-      time: '8:00 PM',
-      location: 'Theater District',
-      image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=800&h=600&fit=crop&auto=format',
-      price: '$120',
-      category: 'theater'
-    },
-  ]
-
-  const eventsToShow = events.length > 0 ? events : defaultEvents
+  const eventsToShow = events
 
   const handleSeeAll = () => {
     if (onSeeAll) {
@@ -113,8 +145,16 @@ export default function MainEventCards({
       </div>
 
       {/* Event Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-      {eventsToShow.map((event) => (
+      {loading && eventsToShow.length === 0 ? (
+        <EventCardSkeleton count={3} />
+      ) : eventsToShow.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No events found</p>
+          <p className="text-gray-400 text-sm mt-2">Check back later for new events</p>
+        </div>
+      ) : (
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 transition-opacity duration-200 ${loading ? 'opacity-60 pointer-events-none' : 'opacity-100'}`}>
+        {eventsToShow.map((event) => (
         <div
           key={event.id}
           onClick={() => router.push(`/events/${event.id}`)}
@@ -144,16 +184,14 @@ export default function MainEventCards({
 
               {/* Bookmark Button - Right Side */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleWishlist(event.id)
-                }}
-                className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white p-1.5 sm:p-2 rounded z-10 hover:bg-gray-50 transition-colors duration-200"
+                onClick={(e) => handleToggleBookmark(event.id, e)}
+                disabled={processingBookmarks.has(event.id)}
+                className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white p-1.5 sm:p-2 rounded z-10 hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Bookmark event"
               >
                 <Bookmark 
                   className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${
-                    wishlist.has(event.id)
+                    bookmarkedEvents.has(event.id)
                       ? 'fill-[#F0635A] text-[#F0635A]'
                       : 'text-[#F0635A]'
                   }`}
@@ -182,7 +220,8 @@ export default function MainEventCards({
           </div>
         </div>
       ))}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

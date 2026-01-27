@@ -1,15 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Search, Bell, ChevronDown, Menu, X, User, LogIn } from 'lucide-react'
+import { Search, Bell, ChevronDown, Menu, X, User, LogIn, MapPin } from 'lucide-react'
 import AuthModal from './AuthModal'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLocation } from '@/contexts/LocationContext'
 
 export default function Navbar() {
   const { user: loggedInUser, logout } = useAuth()
+  const { location } = useLocation()
   const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -17,6 +19,11 @@ export default function Navbar() {
   const [imageError, setImageError] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authModalView, setAuthModalView] = useState('login')
+
+  // Reset image error when user changes
+  useEffect(() => {
+    setImageError(false)
+  }, [loggedInUser?.profileImage])
 
   const handleLogout = () => {
     logout()
@@ -53,6 +60,16 @@ export default function Navbar() {
 
           {/* Desktop Navigation - Right Side */}
           <div className="hidden md:flex md:items-center md:space-x-4 flex-1 justify-end">
+            {/* Location Display */}
+            {location?.city && (
+              <div className="flex items-center space-x-1.5 px-3 py-2 bg-purple-50 rounded-lg border border-purple-200">
+                <MapPin className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-purple-700 whitespace-nowrap">
+                  {location.city}
+                </span>
+              </div>
+            )}
+            
             {/* Search Bar */}
             <div className="relative">
               <input
@@ -89,10 +106,10 @@ export default function Navbar() {
                 >
                   {/* User Avatar */}
                   <div className="relative w-10 h-10 flex-shrink-0">
-                    {!imageError ? (
+                    {loggedInUser?.profileImage && !imageError ? (
                       <Image
-                        src={loggedInUser.image}
-                        alt={loggedInUser.name}
+                        src={loggedInUser.profileImage}
+                        alt={loggedInUser.name || loggedInUser.email || 'User'}
                         width={40}
                         height={40}
                         className="rounded-full object-cover w-10 h-10"
@@ -133,6 +150,13 @@ export default function Navbar() {
                         onClick={() => setIsUserMenuOpen(false)}
                       >
                         My Events
+                      </Link>
+                      <Link
+                        href="/bookmarks"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Saved Events
                       </Link>
                       <Link
                         href="/notifications"
@@ -188,6 +212,16 @@ export default function Navbar() {
       {isMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
+            {/* Mobile Location Display */}
+            {location?.city && (
+              <div className="flex items-center space-x-2 px-3 py-2 mb-3 bg-purple-50 rounded-lg border border-purple-200">
+                <MapPin className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-purple-700">
+                  {location.city}
+                </span>
+              </div>
+            )}
+            
             {/* Mobile Search */}
             <div className="relative mb-4">
               <input
@@ -216,10 +250,10 @@ export default function Navbar() {
               {loggedInUser ? (
                 <div className="flex items-center space-x-3 px-3 py-2">
                   <div className="relative w-8 h-8 flex-shrink-0">
-                    {!imageError ? (
+                    {loggedInUser?.profileImage && !imageError ? (
                       <Image
-                        src={loggedInUser.image}
-                        alt={loggedInUser.name}
+                        src={loggedInUser.profileImage}
+                        alt={loggedInUser.name || loggedInUser.email || 'User'}
                         width={32}
                         height={32}
                         className="rounded-full object-cover w-8 h-8"
@@ -231,7 +265,9 @@ export default function Navbar() {
                       </div>
                     )}
                   </div>
-                  <span className="text-sm font-medium text-gray-700">{loggedInUser.name}</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {loggedInUser?.name || loggedInUser?.email || 'User'}
+                  </span>
                 </div>
               ) : (
                 <button

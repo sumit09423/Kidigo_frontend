@@ -4,21 +4,22 @@ import { useState, useEffect } from 'react'
 import { X, Mail, Lock, Eye, EyeOff, ArrowRight, User, Phone } from 'lucide-react'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
+import { handleLogin, handleRegister, handleVerifyOtp, handleResendOtp, handleForgotPassword, handleResetPassword } from '@/API/auth/example-usage'
 
 export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
   const { login } = useAuth()
-  const [currentView, setCurrentView] = useState(initialView) // 'login' | 'signup' | 'verification' | 'resetPassword'
+  const [currentView, setCurrentView] = useState(initialView) // 'login' | 'signup' | 'verification' | 'forgotPassword' | 'resetPassword'
   
   // Login form state
   const [loginData, setLoginData] = useState({
-    phone: '',
+    email: '',
     password: ''
   })
   
   // Signup form state
   const [signupData, setSignupData] = useState({
     fullName: '',
-    phone: '',
+    email: '',
     password: '',
     confirmPassword: ''
   })
@@ -27,10 +28,21 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
   const [verificationData, setVerificationData] = useState({
     code: ''
   })
+
+  // Track email used during signup for verification step
+  const [signupEmailForVerification, setSignupEmailForVerification] = useState('')
+  const [resendCooldown, setResendCooldown] = useState(0)
   
-  // Reset password form state
+  // Forgot password form state
+  const [forgotPasswordData, setForgotPasswordData] = useState({
+    email: ''
+  })
+  const [forgotPasswordCooldown, setForgotPasswordCooldown] = useState(0)
+  
+  // Reset password form state (after receiving code)
   const [resetPasswordData, setResetPasswordData] = useState({
-    phone: '',
+    email: '',
+    code: '',
     newPassword: '',
     confirmPassword: ''
   })
@@ -47,11 +59,14 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
     if (isOpen) {
       setCurrentView(initialView)
       // Reset all forms
-      setLoginData({ phone: '', password: '' })
-      setSignupData({ fullName: '', phone: '', password: '', confirmPassword: '' })
+      setLoginData({ email: '', password: '' })
+      setSignupData({ fullName: '', email: '', password: '', confirmPassword: '' })
       setVerificationData({ code: '' })
-      setResetPasswordData({ phone: '', newPassword: '', confirmPassword: '' })
+      setForgotPasswordData({ email: '' })
+      setResetPasswordData({ email: '', code: '', newPassword: '', confirmPassword: '' })
       setErrors({})
+      setResendCooldown(0)
+      setForgotPasswordCooldown(0)
     }
   }, [isOpen, initialView])
 
@@ -93,7 +108,7 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
 
   const validateLogin = () => {
     const newErrors = {}
-    if (!loginData.phone) newErrors.phone = 'Phone is required'
+    if (!loginData.email) newErrors.email = 'Email is required'
     if (!loginData.password) newErrors.password = 'Password is required'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -105,41 +120,11 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
     
     setIsLoading(true)
     try {
-      // Demo credentials for testing
-      const DEMO_CREDENTIALS = {
-        phone: '1234567890',
-        password: 'demo123'
-      }
-      
-      // Check demo credentials
-      if (loginData.phone === DEMO_CREDENTIALS.phone && loginData.password === DEMO_CREDENTIALS.password) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        // Login user with demo data
-        login({
-          name: 'Gautam Rao',
-          phone: loginData.phone,
-          image: '/assets/user-placeholder.svg',
-          userId: 'ANT456'
-        })
-        
-        console.log('Login successful', loginData)
-        onClose()
-      } else {
-        // TODO: Replace with actual API call for real authentication
-        // const response = await fetch('/api/auth/login', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify(loginData)
-        // })
-        // const data = await response.json()
-        
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        setErrors({ submit: 'Invalid phone or password' })
-      }
+      await handleLogin(loginData.email, loginData.password, { login })
+      onClose()
     } catch (error) {
       console.error('Login error:', error)
-      setErrors({ submit: 'Invalid phone or password' })
+      setErrors({ submit: error?.message || 'Invalid email or password' })
     } finally {
       setIsLoading(false)
     }
@@ -156,18 +141,35 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
 
   const validateSignup = () => {
     const newErrors = {}
+
     if (!signupData.fullName) newErrors.fullName = 'Full name is required'
-    if (!signupData.phone) newErrors.phone = 'Phone is required'
+
+    if (!signupData.email) {
+      newErrors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupData.email)) {
+      newErrors.email = 'Please enter a valid email address'
+    }
+
     if (!signupData.password) {
       newErrors.password = 'Password is required'
-    } else if (signupData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters'
+    } else {
+      if (signupData.password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters'
+      }
+      // Match backend rule: at least one lowercase, one uppercase, and one number
+      const complexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
+      if (!complexityRegex.test(signupData.password)) {
+        newErrors.password =
+          'Password must contain at least one lowercase letter, one uppercase letter, and one number'
+      }
     }
+
     if (!signupData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password'
     } else if (signupData.password !== signupData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match'
     }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -178,21 +180,30 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
     
     setIsLoading(true)
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/auth/signup', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(signupData)
-      // })
-      // const data = await response.json()
-      
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('Signup successful', signupData)
-      // After successful signup, move to verification
+      const user = await handleRegister(signupData.email, signupData.password, 'user')
+      setSignupEmailForVerification(user?.email || signupData.email)
       setCurrentView('verification')
     } catch (error) {
       console.error('Signup error:', error)
-      setErrors({ submit: 'An error occurred during signup' })
+
+      const fieldErrors = {}
+
+      if (error.errors && Array.isArray(error.errors)) {
+        error.errors.forEach((err) => {
+          // Support both formats: backend uses 'field' and 'message', some validators use 'path' and 'msg'
+          const fieldName = err.field || err.path;
+          const errorMessage = err.message || err.msg;
+          if (fieldName && errorMessage) {
+            fieldErrors[fieldName] = errorMessage
+          }
+        })
+      }
+
+      setErrors((prev) => ({
+        ...prev,
+        ...fieldErrors,
+        submit: error?.message || 'An error occurred during signup',
+      }))
     } finally {
       setIsLoading(false)
     }
@@ -207,23 +218,131 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
     }
   }
 
+  const validateVerification = () => {
+    const newErrors = {}
+    const code = verificationData.code?.trim() || ''
+
+    if (!code) {
+      newErrors.code = 'Verification code is required'
+    } else {
+      if (!/^\d+$/.test(code)) {
+        newErrors.code = 'Verification code must contain only digits'
+      } else if (code.length !== 6) {
+        // Match backend wording
+        newErrors.code = 'OTP must be exactly 6 digits'
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleVerificationSubmit = async (e) => {
     e.preventDefault()
+    if (!validateVerification()) return
+
     setIsLoading(true)
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/auth/verify', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ code: verificationData.code, phone: signupData.phone })
-      // })
-      
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('Verification successful', verificationData)
+      const email = signupEmailForVerification || signupData.email
+      await handleVerifyOtp(email, verificationData.code.trim(), (user, token) => {
+        // Persist to AuthContext when verification succeeds
+        login(user, token)
+      })
       onClose()
     } catch (error) {
       console.error('Verification error:', error)
-      setErrors({ submit: 'Invalid verification code' })
+
+      const fieldErrors = {}
+
+      if (error.errors && Array.isArray(error.errors)) {
+        error.errors.forEach((err) => {
+          // Support both formats: backend uses 'field' and 'message', some validators use 'path' and 'msg'
+          const fieldName = err.field || err.path;
+          const errorMessage = err.message || err.msg;
+          
+          // Map backend 'otp' or 'code' field -> frontend 'code' field
+          if ((fieldName === 'otp' || fieldName === 'code') && errorMessage) {
+            fieldErrors.code = errorMessage
+          } else if (fieldName && errorMessage) {
+            fieldErrors[fieldName] = errorMessage
+          }
+        })
+      }
+
+      setErrors((prev) => ({
+        ...prev,
+        ...fieldErrors,
+        submit: error?.message || 'Invalid verification code',
+      }))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendVerificationCode = async () => {
+    const email = signupEmailForVerification || signupData.email
+    if (!email || resendCooldown > 0 || isLoading) return
+
+    try {
+      await handleResendOtp(email, setResendCooldown)
+    } catch (error) {
+      console.error('Resend OTP error:', error)
+      setErrors((prev) => ({
+        ...prev,
+        submit: error?.message || 'Unable to resend verification code',
+      }))
+    }
+  }
+
+  // Forgot password handlers
+  const handleForgotPasswordChange = (e) => {
+    const { name, value } = e.target
+    setForgotPasswordData(prev => ({ ...prev, [name]: value }))
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }))
+    }
+  }
+
+  const validateForgotPassword = () => {
+    const newErrors = {}
+    if (!forgotPasswordData.email) {
+      newErrors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotPasswordData.email)) {
+      newErrors.email = 'Please provide a valid email address'
+    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault()
+    if (!validateForgotPassword()) return
+    
+    setIsLoading(true)
+    try {
+      await handleForgotPassword(forgotPasswordData.email, setForgotPasswordCooldown)
+      // Move to reset password view with email pre-filled
+      setResetPasswordData(prev => ({ ...prev, email: forgotPasswordData.email }))
+      setCurrentView('resetPassword')
+    } catch (error) {
+      console.error('Forgot password error:', error)
+      
+      const fieldErrors = {}
+      if (error.errors && Array.isArray(error.errors)) {
+        error.errors.forEach((err) => {
+          const fieldName = err.field || err.path;
+          const errorMessage = err.message || err.msg;
+          if (fieldName && errorMessage) {
+            fieldErrors[fieldName] = errorMessage
+          }
+        })
+      }
+      
+      setErrors((prev) => ({
+        ...prev,
+        ...fieldErrors,
+        submit: error?.message || 'Failed to send reset code',
+      }))
     } finally {
       setIsLoading(false)
     }
@@ -238,23 +357,83 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
     }
   }
 
+  const validateResetPassword = () => {
+    const newErrors = {}
+
+    if (!resetPasswordData.email) {
+      newErrors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetPasswordData.email)) {
+      newErrors.email = 'Please provide a valid email address'
+    }
+
+    const code = resetPasswordData.code?.trim() || ''
+    if (!code) {
+      newErrors.code = 'Reset code must be exactly 6 digits'
+    } else {
+      if (!/^\d+$/.test(code)) {
+        newErrors.code = 'Reset code must contain only numbers'
+      } else if (code.length !== 6) {
+        newErrors.code = 'Reset code must be exactly 6 digits'
+      }
+    }
+
+    if (!resetPasswordData.newPassword) {
+      newErrors.newPassword = 'New password is required'
+    } else {
+      if (resetPasswordData.newPassword.length < 6) {
+        newErrors.newPassword = 'Password must be at least 6 characters long'
+      }
+      const complexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
+      if (!complexityRegex.test(resetPasswordData.newPassword)) {
+        newErrors.newPassword = 'Password must contain at least one lowercase letter, one uppercase letter, and one number'
+      }
+    }
+
+    if (!resetPasswordData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password'
+    } else if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleResetPasswordSubmit = async (e) => {
     e.preventDefault()
+    if (!validateResetPassword()) return
+    
     setIsLoading(true)
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/auth/reset-password', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(resetPasswordData)
-      // })
-      
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('Password reset successful', resetPasswordData)
-      onClose()
+      await handleResetPassword(
+        resetPasswordData.email,
+        resetPasswordData.code.trim(),
+        resetPasswordData.newPassword
+      )
+      // Success - redirect to login
+      setCurrentView('login')
+      setErrors({})
+      // Show success message
+      setErrors({ submit: 'Password reset successfully! Please login with your new password.' })
     } catch (error) {
       console.error('Reset password error:', error)
-      setErrors({ submit: 'An error occurred' })
+      
+      const fieldErrors = {}
+      if (error.errors && Array.isArray(error.errors)) {
+        error.errors.forEach((err) => {
+          const fieldName = err.field || err.path;
+          const errorMessage = err.message || err.msg;
+          if (fieldName && errorMessage) {
+            fieldErrors[fieldName] = errorMessage
+          }
+        })
+      }
+      
+      setErrors((prev) => ({
+        ...prev,
+        ...fieldErrors,
+        submit: error?.message || 'Failed to reset password',
+      }))
     } finally {
       setIsLoading(false)
     }
@@ -265,28 +444,28 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
     <form onSubmit={handleLoginSubmit} className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900 mb-3">Sign in</h3>
 
-      {/* Phone Input */}
+      {/* Email Input */}
       <div className="mb-4">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
             <Mail className="h-5 w-5 text-gray-400" />
           </div>
           <input
-            type="tel"
-            name="phone"
-            value={loginData.phone}
+            type="email"
+            name="email"
+            value={loginData.email}
             onChange={handleLoginChange}
-            placeholder="Phone"
+            placeholder="Email"
             className={`w-full pl-12 pr-4 py-3.5 border-2 ${
-              errors.phone ? 'border-red-300' : 'border-gray-300'
+              errors.email ? 'border-red-300' : 'border-gray-300'
             } rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-1 ${
-              errors.phone ? 'focus:ring-red-500' : 'focus:ring-purple-500'
+              errors.email ? 'focus:ring-red-500' : 'focus:ring-purple-500'
             } focus:border-purple-500 transition-all bg-white`}
             required
-            autoComplete="tel"
+            autoComplete="email"
           />
         </div>
-        {errors.phone && <p className="mt-1.5 text-sm text-red-600">{errors.phone}</p>}
+        {errors.email && <p className="mt-1.5 text-sm text-red-600">{errors.email}</p>}
       </div>
 
       {/* Password Input */}
@@ -346,7 +525,7 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
         </div>
         <button
           type="button"
-          onClick={() => setCurrentView('resetPassword')}
+          onClick={() => setCurrentView('forgotPassword')}
           className="text-sm text-purple-600 hover:text-purple-700 font-medium whitespace-nowrap"
         >
           Forgot Password?
@@ -442,28 +621,28 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
         {errors.fullName && <p className="mt-1.5 text-sm text-red-600">{errors.fullName}</p>}
       </div>
 
-      {/* Phone Input */}
+      {/* Email Input */}
       <div className="mb-4">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-            <Phone className="h-5 w-5 text-gray-400" />
+            <Mail className="h-5 w-5 text-gray-400" />
           </div>
           <input
-            type="tel"
-            name="phone"
-            value={signupData.phone}
+            type="email"
+            name="email"
+            value={signupData.email}
             onChange={handleSignupChange}
-            placeholder="Phone"
+            placeholder="Email"
             className={`w-full pl-12 pr-4 py-3.5 border-2 ${
-              errors.phone ? 'border-red-300' : 'border-gray-300'
+              errors.email ? 'border-red-300' : 'border-gray-300'
             } rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-1 ${
-              errors.phone ? 'focus:ring-red-500' : 'focus:ring-purple-500'
+              errors.email ? 'focus:ring-red-500' : 'focus:ring-purple-500'
             } focus:border-purple-500 transition-all bg-white`}
             required
-            autoComplete="tel"
+            autoComplete="email"
           />
         </div>
-        {errors.phone && <p className="mt-1.5 text-sm text-red-600">{errors.phone}</p>}
+        {errors.email && <p className="mt-1.5 text-sm text-red-600">{errors.email}</p>}
       </div>
 
       {/* Password Input */}
@@ -600,7 +779,9 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
   const renderVerificationView = () => (
     <form onSubmit={handleVerificationSubmit} className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900 mb-3">Verify Your Account</h3>
-      <p className="text-sm text-gray-500 mb-4">Enter the verification code sent to {signupData.phone}</p>
+      <p className="text-sm text-gray-500 mb-4">
+        Enter the verification code sent to {signupEmailForVerification || signupData.email}
+      </p>
 
       <div className="mb-4">
         <input
@@ -640,9 +821,75 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
           Didn&apos;t receive code?{' '}
           <button
             type="button"
+            onClick={handleResendVerificationCode}
+            disabled={resendCooldown > 0 || isLoading}
+            className="text-purple-600 hover:text-purple-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend'}
+          </button>
+        </p>
+      </div>
+    </form>
+  )
+
+  // Render Forgot Password View
+  const renderForgotPasswordView = () => (
+    <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+      <h3 className="text-lg font-semibold text-gray-900 mb-3">Forgot Password</h3>
+      <p className="text-sm text-gray-500 mb-4">
+        Enter your email address and we&apos;ll send you a reset code.
+      </p>
+
+      {/* Email Input */}
+      <div className="mb-4">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+            <Mail className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="email"
+            name="email"
+            value={forgotPasswordData.email}
+            onChange={handleForgotPasswordChange}
+            placeholder="Email"
+            className={`w-full pl-12 pr-4 py-3.5 border-2 ${
+              errors.email ? 'border-red-300' : 'border-gray-300'
+            } rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-1 ${
+              errors.email ? 'focus:ring-red-500' : 'focus:ring-purple-500'
+            } focus:border-purple-500 transition-all bg-white`}
+            required
+            autoComplete="email"
+          />
+        </div>
+        {errors.email && <p className="mt-1.5 text-sm text-red-600">{errors.email}</p>}
+      </div>
+
+      {errors.submit && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
+          <p className="text-sm text-red-600">{errors.submit}</p>
+        </div>
+      )}
+
+      {/* Submit button */}
+      <button
+        type="submit"
+        disabled={isLoading || forgotPasswordCooldown > 0}
+        className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 uppercase tracking-wide mb-5"
+      >
+        {isLoading ? 'Sending...' : forgotPasswordCooldown > 0 ? `Resend in ${forgotPasswordCooldown}s` : 'SEND RESET CODE'}
+        <ArrowRight className="h-5 w-5 bg-white/20 rounded-full p-1" />
+      </button>
+
+      {/* Back to login */}
+      <div className="text-center pt-2">
+        <p className="text-sm text-gray-600">
+          Remember your password?{' '}
+          <button
+            type="button"
+            onClick={() => setCurrentView('login')}
             className="text-purple-600 hover:text-purple-700 font-medium"
           >
-            Resend
+            Sign in
           </button>
         </p>
       </div>
@@ -653,28 +900,46 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
   const renderResetPasswordView = () => (
     <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900 mb-3">Reset Password</h3>
+      <p className="text-sm text-gray-500 mb-4">
+        Enter the reset code sent to {resetPasswordData.email || 'your email'} and your new password.
+      </p>
 
+      {/* Email Input (read-only, pre-filled) */}
       <div className="mb-4">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-            <Phone className="h-5 w-5 text-gray-400" />
+            <Mail className="h-5 w-5 text-gray-400" />
           </div>
           <input
-            type="tel"
-            name="phone"
-            value={resetPasswordData.phone}
+            type="email"
+            name="email"
+            value={resetPasswordData.email}
             onChange={handleResetPasswordChange}
-            placeholder="Phone"
-            className={`w-full pl-12 pr-4 py-3.5 border-2 ${
-              errors.phone ? 'border-red-300' : 'border-gray-300'
-            } rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-1 ${
-              errors.phone ? 'focus:ring-red-500' : 'focus:ring-purple-500'
-            } focus:border-purple-500 transition-all bg-white`}
-            required
-            autoComplete="tel"
+            placeholder="Email"
+            className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-300 rounded-lg placeholder-gray-400 text-gray-600 bg-gray-50 cursor-not-allowed"
+            readOnly
+            autoComplete="email"
           />
         </div>
-        {errors.phone && <p className="mt-1.5 text-sm text-red-600">{errors.phone}</p>}
+      </div>
+
+      {/* Reset Code Input */}
+      <div className="mb-4">
+        <input
+          type="text"
+          name="code"
+          value={resetPasswordData.code}
+          onChange={handleResetPasswordChange}
+          placeholder="Enter 6-digit reset code"
+          maxLength="6"
+          className={`w-full px-4 py-3.5 border-2 ${
+            errors.code ? 'border-red-300' : 'border-gray-300'
+          } rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-1 ${
+            errors.code ? 'focus:ring-red-500' : 'focus:ring-purple-500'
+          } focus:border-purple-500 transition-all bg-white text-center text-2xl tracking-widest`}
+          required
+        />
+        {errors.code && <p className="mt-1.5 text-sm text-red-600">{errors.code}</p>}
       </div>
 
       <div className="mb-4">
@@ -738,8 +1003,16 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
       </div>
 
       {errors.submit && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
-          <p className="text-sm text-red-600">{errors.submit}</p>
+        <div className={`p-3 border rounded-lg mb-4 ${
+          errors.submit.includes('successfully') 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <p className={`text-sm ${
+            errors.submit.includes('successfully') 
+              ? 'text-green-600' 
+              : 'text-red-600'
+          }`}>{errors.submit}</p>
         </div>
       )}
 
@@ -754,6 +1027,16 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
 
       <div className="text-center pt-2">
         <p className="text-sm text-gray-600">
+          Didn&apos;t receive code?{' '}
+          <button
+            type="button"
+            onClick={() => setCurrentView('forgotPassword')}
+            className="text-purple-600 hover:text-purple-700 font-medium"
+          >
+            Resend code
+          </button>
+        </p>
+        <p className="text-sm text-gray-600 mt-2">
           Remember your password?{' '}
           <button
             type="button"
@@ -785,10 +1068,15 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
           title: 'Verify Your Account',
           subtitle: 'Enter the verification code'
         }
+      case 'forgotPassword':
+        return {
+          title: 'Forgot Password',
+          subtitle: 'Enter your email to receive a reset code'
+        }
       case 'resetPassword':
         return {
           title: 'Reset Password',
-          subtitle: 'Enter your new password'
+          subtitle: 'Enter reset code and new password'
         }
       default:
         return {
@@ -848,6 +1136,7 @@ export default function AuthModal({ isOpen, onClose, initialView = 'login' }) {
               {currentView === 'login' && renderLoginView()}
               {currentView === 'signup' && renderSignupView()}
               {currentView === 'verification' && renderVerificationView()}
+              {currentView === 'forgotPassword' && renderForgotPasswordView()}
               {currentView === 'resetPassword' && renderResetPasswordView()}
             </div>
           </div>
