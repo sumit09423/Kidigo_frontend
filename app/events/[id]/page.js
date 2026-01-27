@@ -352,7 +352,7 @@ export default function EventDetailsPage() {
             <span>
               {event.price === 0 || event.currency === 'Free' 
                 ? 'GET FREE TICKET' 
-                : `BUY TICKET ${event.currency} ${event.price}`}
+                : `BUY TICKET ${event.price}`}
             </span>
             <ChevronRight className="w-5 h-5" />
           </button>

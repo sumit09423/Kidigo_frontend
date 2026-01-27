@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -8,6 +8,23 @@ import { Search, Bell, ChevronDown, Menu, X, User, LogIn, MapPin } from 'lucide-
 import AuthModal from './AuthModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
+
+// Custom debounce hook
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
 
 export default function Navbar() {
   const { user: loggedInUser, logout } = useAuth()
@@ -19,11 +36,37 @@ export default function Navbar() {
   const [imageError, setImageError] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authModalView, setAuthModalView] = useState('login')
+  
+  // Debounce search query (500ms delay)
+  const debouncedSearchQuery = useDebounce(searchQuery, 500)
 
   // Reset image error when user changes
   useEffect(() => {
     setImageError(false)
   }, [loggedInUser?.profileImage])
+
+  // Handle search - navigate to events page with search query
+  const handleSearch = (query) => {
+    if (!query || !query.trim()) {
+      router.push('/events')
+      return
+    }
+    
+    const trimmedQuery = query.trim()
+    router.push(`/events?search=${encodeURIComponent(trimmedQuery)}`)
+  }
+
+  // Handle search input key press
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch(searchQuery)
+    }
+  }
+
+  // Handle search button click
+  const handleSearchClick = () => {
+    handleSearch(searchQuery)
+  }
 
   const handleLogout = () => {
     logout()
@@ -33,6 +76,33 @@ export default function Navbar() {
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
+  }
+
+  // Extract first name from email address
+  const getFirstNameFromEmail = (email) => {
+    if (!email) return 'User'
+    
+    // Extract the part before @
+    const emailPrefix = email.split('@')[0]
+    
+    // Extract first name (part before dot, or entire prefix if no dot)
+    const firstName = emailPrefix.split('.')[0]
+    
+    // Capitalize first letter
+    return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+  }
+
+  // Get display name - prioritize name, then first name from email
+  const getDisplayName = () => {
+    if (loggedInUser?.name) {
+      // If name exists, extract first name from it
+      const firstName = loggedInUser.name.split(' ')[0]
+      return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+    }
+    if (loggedInUser?.email) {
+      return getFirstNameFromEmail(loggedInUser.email)
+    }
+    return 'User'
   }
 
   const navLinks = [
@@ -77,11 +147,16 @@ export default function Navbar() {
                 placeholder="Search for Events, Workshops, Classes"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleSearchKeyPress}
                 className="block w-64 pl-3 pr-10 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
               />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <button
+                onClick={handleSearchClick}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center hover:opacity-70 transition-opacity"
+                aria-label="Search"
+              >
                 <Search className="h-5 w-5 text-gray-400" />
-              </div>
+              </button>
             </div>
 
             {/* Notification Bell */}
@@ -112,18 +187,18 @@ export default function Navbar() {
                         alt={loggedInUser.name || loggedInUser.email || 'User'}
                         width={40}
                         height={40}
-                        className="rounded-full object-cover w-10 h-10"
+                        className="rounded-full object-cover w-10 h-10 border-2 border-gray-200"
                         onError={() => setImageError(true)}
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
                         <User className="w-6 h-6 text-gray-500" />
                       </div>
                     )}
                   </div>
-                  {/* User Name/ID */}
-                  <span className="text-sm font-medium text-gray-700 hidden lg:block">
-                    {loggedInUser.userId || loggedInUser.name}
+                  {/* User Name - Always visible */}
+                  <span className="text-sm font-semibold text-gray-900">
+                    {getDisplayName()}
                   </span>
                   {/* Down Arrow */}
                   <ChevronDown className={`h-5 w-5 text-gray-500 transition-transform ${isUserMenuOpen ? 'transform rotate-180' : ''}`} />
@@ -229,11 +304,16 @@ export default function Navbar() {
                 placeholder="Search for Events, Workshops, Classes"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleSearchKeyPress}
                 className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
               />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <button
+                onClick={handleSearchClick}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center hover:opacity-70 transition-opacity"
+                aria-label="Search"
+              >
                 <Search className="h-5 w-5 text-gray-400" />
-              </div>
+              </button>
             </div>
 
             {navLinks.map((link) => (
@@ -249,24 +329,24 @@ export default function Navbar() {
             <div className="pt-4 pb-3 border-t border-gray-200">
               {loggedInUser ? (
                 <div className="flex items-center space-x-3 px-3 py-2">
-                  <div className="relative w-8 h-8 flex-shrink-0">
+                  <div className="relative w-10 h-10 flex-shrink-0">
                     {loggedInUser?.profileImage && !imageError ? (
                       <Image
                         src={loggedInUser.profileImage}
                         alt={loggedInUser.name || loggedInUser.email || 'User'}
-                        width={32}
-                        height={32}
-                        className="rounded-full object-cover w-8 h-8"
+                        width={40}
+                        height={40}
+                        className="rounded-full object-cover w-10 h-10 border-2 border-gray-200"
                         onError={() => setImageError(true)}
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                        <User className="w-5 h-5 text-gray-500" />
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                        <User className="w-6 h-6 text-gray-500" />
                       </div>
                     )}
                   </div>
-                  <span className="text-sm font-medium text-gray-700">
-                    {loggedInUser?.name || loggedInUser?.email || 'User'}
+                  <span className="text-sm font-semibold text-gray-900">
+                    {getDisplayName()}
                   </span>
                 </div>
               ) : (

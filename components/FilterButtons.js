@@ -1,18 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Calendar, ChevronRight } from 'lucide-react'
 
 export default function FilterButtons({ 
   filters = [],
   onFilterClick,
   defaultSelected = null,
+  selected: controlledSelected = null,
   className = ''
 }) {
-  const [selectedFilter, setSelectedFilter] = useState(defaultSelected)
+  const [internalSelected, setInternalSelected] = useState(defaultSelected)
+
+  // Controlled mode: use prop when provided; otherwise use internal state
+  const isControlled = controlledSelected !== null && controlledSelected !== undefined
+  const selectedFilter = isControlled ? controlledSelected : internalSelected
+
+  useEffect(() => {
+    if (!isControlled && defaultSelected != null) {
+      setInternalSelected(defaultSelected)
+    }
+  }, [defaultSelected, isControlled])
 
   const handleClick = (filter) => {
-    setSelectedFilter(filter.id || filter.label)
+    const filterId = filter.id || filter.label
+    if (!isControlled) {
+      setInternalSelected(filterId)
+    }
     if (onFilterClick) {
       onFilterClick(filter)
     }
@@ -25,7 +39,6 @@ export default function FilterButtons({
     { id: 'this-weekend', label: 'This Weekend' },
     { id: 'calendar', label: 'Choose from calendar', icon: Calendar, hasArrow: true },
     { id: 'age', label: '0 - 3 years', hasRadio: true, hasArrow: true },
-    { id: 'distance', label: 'Under 10km' },
   ]
 
   const filtersToRender = filters.length > 0 ? filters : defaultFilters

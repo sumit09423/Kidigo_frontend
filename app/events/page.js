@@ -13,11 +13,14 @@ export default function EventsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const categoryFromUrl = searchParams.get('category')
+  const searchFromUrl = searchParams.get('search')
   
   const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || 'all')
   const [events, setEvents] = useState([])
   const [categoryButtons, setCategoryButtons] = useState([])
   const [loading, setLoading] = useState(true)
+  const [selectedDateFilter, setSelectedDateFilter] = useState(null)
+  const [selectedAgeFilter, setSelectedAgeFilter] = useState(null)
   const { location } = useLocation()
 
   // Load categories to get button data for filtering (needed for category name lookup)
@@ -66,7 +69,7 @@ export default function EventsPage() {
     }
   }, [categoryFromUrl, categoryButtons])
 
-  // Load events based on selected category
+  // Load events based on selected category, search, and filters
   useEffect(() => {
     if (!selectedCategory) return
     
@@ -75,36 +78,49 @@ export default function EventsPage() {
         // Don't clear existing events immediately - keep them visible to prevent flicker
         setLoading(true)
         
-        // Build filters - include cityId if available
-        const filters = buildEventFilters(location)
+        // Build filters - include cityId, search, dateFilter, and age filters
+        const filters = buildEventFilters(location, {
+          search: searchFromUrl || undefined,
+          dateFilter: selectedDateFilter || undefined,
+          minAge: selectedAgeFilter?.minAge,
+          maxAge: selectedAgeFilter?.maxAge,
+        })
         
-        // If "all" is selected, get all events (don't need to wait for categories)
-        if (selectedCategory === 'all') {
-          const allEvents = await getAllEvents(filters)
-          console.log(`Loaded ${allEvents.length} events (all categories)`)
-          setEvents(allEvents)
-        } else {
-          // For specific categories, wait for categories to load to get the category name
-          if (categoryButtons.length === 0) return
-          
-          // Find the selected category object to get its name
+        // If specific category is selected, add categoryId to filters
+        if (selectedCategory !== 'all' && categoryButtons.length > 0) {
+          const selectedCategoryObj = categoryButtons.find(cat => 
+            (cat.id || cat.category?.toLowerCase()) === selectedCategory.toLowerCase()
+          )
+          if (selectedCategoryObj?.id) {
+            filters.categoryId = selectedCategoryObj.id
+          }
+        }
+        
+        // Get events from API with all filters applied
+        const allEvents = await getAllEvents(filters)
+        
+        // If category is selected (not 'all'), also filter client-side by category name
+        // This is a fallback in case categoryId filter doesn't work
+        let filteredEvents = allEvents
+        if (selectedCategory !== 'all' && categoryButtons.length > 0) {
           const selectedCategoryObj = categoryButtons.find(cat => 
             (cat.id || cat.category?.toLowerCase()) === selectedCategory.toLowerCase()
           )
           const categoryName = selectedCategoryObj?.category || selectedCategory
           
-          // Get all events first, then filter by category
-          const allEvents = await getAllEvents(filters)
-          
-          // Filter events that match the category
-          const filtered = allEvents.filter(event => 
+          filteredEvents = allEvents.filter(event => 
             event.category?.toLowerCase() === categoryName?.toLowerCase() ||
             event.subCategory?.toLowerCase() === categoryName?.toLowerCase()
           )
-          
-          console.log(`Filtered to ${filtered.length} events for category: ${categoryName}`)
-          setEvents(filtered)
         }
+        
+        console.log(`Loaded ${filteredEvents.length} events with filters:`, {
+          category: selectedCategory,
+          search: searchFromUrl,
+          dateFilter: selectedDateFilter,
+          ageFilter: selectedAgeFilter
+        })
+        setEvents(filteredEvents)
       } catch (error) {
         console.error('Error loading events:', error)
         // Show error to user instead of stub data
@@ -116,30 +132,62 @@ export default function EventsPage() {
     }
     
     loadEvents()
-  }, [selectedCategory, location, categoryButtons])
+  }, [selectedCategory, location, categoryButtons, searchFromUrl, selectedDateFilter, selectedAgeFilter])
 
   const handleCategoryClick = (button) => {
     const categoryId = button.id
     setSelectedCategory(categoryId)
     
-    // Update URL with category parameter (use replace to avoid flicker)
-    if (categoryId === 'all') {
-      router.replace('/events', { scroll: false })
-    } else {
-      router.replace(`/events?category=${categoryId}`, { scroll: false })
+    // Update URL with category parameter, preserving search query if present
+    const params = new URLSearchParams()
+    if (categoryId !== 'all') {
+      params.set('category', categoryId)
     }
+    if (searchFromUrl) {
+      params.set('search', searchFromUrl)
+    }
+    
+    const queryString = params.toString()
+    router.replace(queryString ? `/events?${queryString}` : '/events', { scroll: false })
   }
 
   const handleFilterClick = (filter) => {
     console.log('Selected filter:', filter.id)
+    
+    // Handle date filters
+    if (filter.id === 'today' || filter.id === 'tomorrow' || filter.id === 'this-weekend') {
+      // Toggle date filter - if same filter clicked, deselect it
+      if (selectedDateFilter === filter.id) {
+        setSelectedDateFilter(null)
+      } else {
+        setSelectedDateFilter(filter.id)
+      }
+    }
+    // Handle age filter (0-3 years)
+    else if (filter.id === 'age') {
+      // Toggle age filter - if same filter clicked, deselect it
+      if (selectedAgeFilter?.minAge === 0 && selectedAgeFilter?.maxAge === 3) {
+        setSelectedAgeFilter(null)
+      } else {
+        setSelectedAgeFilter({ minAge: 0, maxAge: 3 })
+      }
+    }
+    // Handle calendar filter (future enhancement)
+    else if (filter.id === 'calendar') {
+      // TODO: Open calendar modal to select date
+      console.log('Calendar filter clicked - to be implemented')
+    }
   }
 
   // Get category name for title
   const categoryName = selectedCategory === 'all' 
-    ? 'All Events' 
+    ? (searchFromUrl ? `Search Results for "${searchFromUrl}"` : 'All Events')
     : categoryButtons.find(cat => 
         (cat.id || cat.category?.toLowerCase()) === selectedCategory.toLowerCase()
       )?.category || 'Events'
+  
+  // Determine default selected filter for FilterButtons
+  const defaultFilterId = selectedDateFilter || 'tomorrow'
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -166,7 +214,8 @@ export default function EventsPage() {
           <div className="mb-8">
             <FilterButtons
               onFilterClick={handleFilterClick}
-              defaultSelected="tomorrow"
+              defaultSelected={defaultFilterId}
+              selected={selectedDateFilter || (selectedAgeFilter ? 'age' : null)}
             />
           </div>
 
