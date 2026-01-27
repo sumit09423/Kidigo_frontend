@@ -141,7 +141,7 @@ export default function MyEventsPage() {
               No Past Events
             </h2>
             <p className="text-gray-500 mb-6 max-w-md">
-              You haven't attended any events yet
+              You haven&apos;t attended any events yet
             </p>
             <Link
               href="/events"
